@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 
-const REFRESH_INTERVAL_MS = 10000;
+const REFRESH_INTERVAL_MS = 5000;
 
 function App() {
   const [priceUsd, setPriceUsd] = useState<number | null>(null);
@@ -40,7 +40,7 @@ function App() {
     // Первый запрос сразу
     fetchPrice();
 
-    // Повторяем каждые 10 секунд
+    // Повторяем каждые 5 секунд
     const interval = setInterval(fetchPrice, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);

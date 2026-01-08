@@ -1,3 +1,7 @@
+* {
+  box-sizing: border-box;
+}
+
 html,
 body,
 #root {
@@ -6,6 +10,7 @@ body,
   width: 100%;
   height: 100%;
   background: transparent;
+  overflow: hidden;
 }
 
 .app {
@@ -13,11 +18,15 @@ body,
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.3);
-  color: #f5f5f5;
-  font-family: system-ui, "Segoe UI", sans-serif;
-  font-size: 13px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 8px;
+  color: #e5e7eb;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
   -webkit-app-region: drag;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .titlebar {
@@ -25,11 +34,14 @@ body,
   padding: 4px 12px;
   display: flex;
   align-items: center;
+  font-size: 11px;
+  opacity: 0.9;
   -webkit-app-region: drag;
+  margin: 0;
 }
 
 .title {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .content {
@@ -40,6 +52,8 @@ body,
   justify-content: center;
   gap: 4px;
   -webkit-app-region: drag;
+  margin: 0;
+  min-height: 0;
 }
 
 .price {
@@ -48,35 +62,42 @@ body,
   align-items: center;
   gap: 4px;
   -webkit-app-region: drag;
+  margin: 0;
 }
 
 .price-value {
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .error {
-  color: #ff6b6b;
-  font-size: 12px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #9ca3af;
   -webkit-app-region: drag;
 }
 
 .error-message {
-  color: #999;
+  color: #9ca3af;
   font-size: 10px;
   margin-top: 2px;
   -webkit-app-region: drag;
 }
 
 .change {
-  font-size: 11px;
+  font-size: 12px;
+  margin-top: 2px;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.8);
   font-weight: 500;
   -webkit-app-region: drag;
 }
 
 .change.up {
-  color: #51cf66;
+  color: #22c55e;
 }
 
 .change.down {
-  color: #ff6b6b;
+  color: #f97373;
 }
