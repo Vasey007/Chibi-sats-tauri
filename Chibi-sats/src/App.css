@@ -1,0 +1,82 @@
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+.app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.3);
+  color: #f5f5f5;
+  font-family: system-ui, "Segoe UI", sans-serif;
+  font-size: 13px;
+  -webkit-app-region: drag;
+}
+
+.titlebar {
+  height: 24px;
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  -webkit-app-region: drag;
+}
+
+.title {
+  font-size: 12px;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  -webkit-app-region: drag;
+}
+
+.price {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: drag;
+}
+
+.price-value {
+  font-weight: 600;
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 12px;
+  -webkit-app-region: drag;
+}
+
+.error-message {
+  color: #999;
+  font-size: 10px;
+  margin-top: 2px;
+  -webkit-app-region: drag;
+}
+
+.change {
+  font-size: 11px;
+  font-weight: 500;
+  -webkit-app-region: drag;
+}
+
+.change.up {
+  color: #51cf66;
+}
+
+.change.down {
+  color: #ff6b6b;
+}
