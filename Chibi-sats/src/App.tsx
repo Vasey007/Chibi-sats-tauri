@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 
+const REFRESH_INTERVAL_MS = 10000;
+
 function App() {
   const [priceUsd, setPriceUsd] = useState<number | null>(null);
   const [change24h, setChange24h] = useState<number | null>(null);
@@ -10,7 +12,7 @@ function App() {
     const fetchPrice = async () => {
       try {
         const response = await fetch(
-          "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true"
+          "https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT"
         );
         
         if (!response.ok) {
@@ -19,24 +21,27 @@ function App() {
 
         const data = await response.json();
         
-        if (data.bitcoin) {
-          setPriceUsd(data.bitcoin.usd);
-          setChange24h(data.bitcoin.usd_24h_change);
+        if (data.retCode === 0 && data.result && data.result.list && data.result.list.length > 0) {
+          const item = data.result.list[0];
+          setPriceUsd(parseFloat(item.lastPrice));
+          setChange24h(parseFloat(item.price24hPcnt) * 100);
           setError(null);
         } else {
           throw new Error("Ошибка загрузки цены");
         }
       } catch (err) {
         // При ошибке не сбрасываем priceUsd и change24h, оставляем последнюю успешную цену
-        setError("Нет связи с API, попробую ещё раз");
+        const errorMessage = "Нет связи с API Bybit, попробую ещё раз";
+        setError(errorMessage);
+        console.error("Error fetching price from Bybit:", err);
       }
     };
 
     // Первый запрос сразу
     fetchPrice();
 
-    // Повторяем каждые 15 секунд
-    const interval = setInterval(fetchPrice, 15000);
+    // Повторяем каждые 10 секунд
+    const interval = setInterval(fetchPrice, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, []);
