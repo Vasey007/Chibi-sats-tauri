@@ -72,13 +72,13 @@ pub fn run() {
             let tf_1w = CheckMenuItem::with_id(handle, "1w", "1 week", true, false, None::<&str>)?;
             let tf_1m = CheckMenuItem::with_id(handle, "1m", "1 month", true, false, None::<&str>)?;
             let tf_1y = CheckMenuItem::with_id(handle, "1y", "1 year", true, false, None::<&str>)?;
-            let theme_light = CheckMenuItem::with_id(handle, "theme_light", "Светлая", true, true, None::<&str>)?;
-            let theme_dark = CheckMenuItem::with_id(handle, "theme_dark", "Темная", true, false, None::<&str>)?;
+            let theme_light = CheckMenuItem::with_id(handle, "theme_light", "Light", true, true, None::<&str>)?;
+            let theme_dark = CheckMenuItem::with_id(handle, "theme_dark", "Dark", true, false, None::<&str>)?;
 
             // Create the Submenu object for themes
             let theme_submenu = tauri::menu::Submenu::with_items(
                 handle,
-                "Темы",
+                "Themes",
                 true,
                 &[
                     &theme_light,
