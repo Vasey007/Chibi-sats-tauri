@@ -4,11 +4,10 @@ import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-
-
 const REFRESH_INTERVAL_MS = 5000;
 
 type Timeframe = "24h" | "1w" | "1m" | "1y";
+type Theme = "light" | "dark";
 
 // Helper function to calculate percentage change
 const calculatePercentageChange = (prices: number[]): number | null => {
@@ -28,6 +27,7 @@ function App() {
   const [chartData, setChartData] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("24h");
+  const [theme, setTheme] = useState<Theme>("light"); // Default theme
   const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
 
   // Use useRef to store chart data for different timeframes
@@ -145,6 +145,22 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    // Слушаем изменение темы из нативного меню
+    let unlistenPromise: Promise<() => void>;
+    unlistenPromise = listen<string>("theme-changed", (event) => {
+      setTheme(event.payload === "theme_light" ? "light" : "dark");
+    });
+
+    return () => {
+      unlistenPromise.then(unlisten => {
+        if (unlisten) {
+          unlisten();
+        }
+      });
+    };
+  }, []);
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     invoke("show_context_menu");
@@ -164,7 +180,7 @@ function App() {
 
   return (
     <div 
-      className="app" 
+      className={`app ${theme}`} 
       style={{ position: 'relative' }} 
       onContextMenu={handleContextMenu}
       data-tauri-drag-region

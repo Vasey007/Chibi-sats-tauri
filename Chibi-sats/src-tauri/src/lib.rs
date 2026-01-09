@@ -72,6 +72,20 @@ pub fn run() {
             let tf_1w = CheckMenuItem::with_id(handle, "1w", "1 week", true, false, None::<&str>)?;
             let tf_1m = CheckMenuItem::with_id(handle, "1m", "1 month", true, false, None::<&str>)?;
             let tf_1y = CheckMenuItem::with_id(handle, "1y", "1 year", true, false, None::<&str>)?;
+            let theme_light = CheckMenuItem::with_id(handle, "theme_light", "Светлая", true, true, None::<&str>)?;
+            let theme_dark = CheckMenuItem::with_id(handle, "theme_dark", "Темная", true, false, None::<&str>)?;
+
+            // Create the Submenu object for themes
+            let theme_submenu = tauri::menu::Submenu::with_items(
+                handle,
+                "Темы",
+                true,
+                &[
+                    &theme_light,
+                    &theme_dark,
+                ],
+            )?;
+
             let autostart_status = handle.autolaunch().is_enabled().unwrap_or(false);
             let autostart_item = CheckMenuItem::with_id(handle, "autostart", "Launch at startup", true, autostart_status, None::<&str>)?;
             let quit = MenuItem::with_id(handle, "quit", "Close Application", true, None::<&str>)?;
@@ -93,6 +107,7 @@ pub fn run() {
                 handle,
                 &[
                     &timeframe_submenu,
+                    &theme_submenu, // Add the theme submenu here
                     &tauri::menu::PredefinedMenuItem::separator(handle)?,
                     &autostart_item,
                     &quit,
@@ -105,6 +120,8 @@ pub fn run() {
             let tf_1m_clone = tf_1m.clone();
             let tf_1y_clone = tf_1y.clone();
             let autostart_item_clone = autostart_item.clone();
+            let theme_light_clone = theme_light.clone();
+            let theme_dark_clone = theme_dark.clone();
 
             app.on_menu_event(move |app_handle, event| {
                 let id = event.id.0.as_str();
@@ -115,6 +132,11 @@ pub fn run() {
                         tf_1m_clone.set_checked(id == "1m").unwrap();
                         tf_1y_clone.set_checked(id == "1y").unwrap();
                         let _ = app_handle.emit("timeframe-changed", id);
+                    }
+                    "theme_light" | "theme_dark" => {
+                        theme_light_clone.set_checked(id == "theme_light").unwrap();
+                        theme_dark_clone.set_checked(id == "theme_dark").unwrap();
+                        let _ = app_handle.emit("theme-changed", id);
                     }
                     "autostart" => {
                         let current_status = autostart_item_clone.is_checked().unwrap_or(false);
