@@ -109,6 +109,8 @@ function App() {
           case "1y": setChange1y(change); break;
         }
       }
+      // Set initial chart data after all historical data is fetched
+      setChartData(allChartData.current[timeframe]);
     };
 
     fetchData(); // Initial fetch
