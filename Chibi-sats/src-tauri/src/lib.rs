@@ -38,10 +38,17 @@ pub fn run() {
 
                 // Calculate position for bottom-right corner
                 let x = screen_size.width - window_size.width - 10; // 10px padding from right
-                let y = screen_size.height - window_size.height - 10; // 10px padding from bottom
+                let y = screen_size.height - window_size.height - 50; // 50px padding from bottom
 
                 window.set_position(PhysicalPosition::new(x, y)).unwrap();
             }
+
+            // Temporarily keep the window on top, then disable it
+            let window_clone = window.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(2)); // Wait for 2 seconds
+                window_clone.set_always_on_top(false).unwrap();
+            });
 
             // Create menu items
             let tf_24h = CheckMenuItem::with_id(handle, "24h", "24 hours", true, true, None::<&str>)?;
