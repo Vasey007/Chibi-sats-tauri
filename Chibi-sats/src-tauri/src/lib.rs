@@ -2,8 +2,71 @@ use tauri::{
     menu::{ContextMenu, Menu, MenuItem, CheckMenuItem},
     Emitter, Manager, PhysicalPosition,
 };
+use lazy_static::lazy_static;
+use std::sync::Mutex;
 
 struct MenuState(Menu<tauri::Wry>);
+
+lazy_static! {
+    static ref CURRENT_LANGUAGE: Mutex<String> = Mutex::new("en".to_string());
+    static ref LANG_EN_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref LANG_RU_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref TF_24H_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref TF_1W_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref TF_1M_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref TF_1Y_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref THEME_LIGHT_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref THEME_DARK_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref AUTOSTART_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref QUIT_MENU_ITEM: Mutex<Option<MenuItem<tauri::Wry>>> = Mutex::new(None);
+}
+
+fn get_translation_map() -> std::collections::HashMap<String, std::collections::HashMap<String, String>> {
+    let mut map = std::collections::HashMap::new();
+
+    let mut en_translations = std::collections::HashMap::new();
+    en_translations.insert("24 hours".to_string(), "24 hours".to_string());
+    en_translations.insert("1 week".to_string(), "1 week".to_string());
+    en_translations.insert("1 month".to_string(), "1 month".to_string());
+    en_translations.insert("1 year".to_string(), "1 year".to_string());
+    en_translations.insert("Themes".to_string(), "Themes".to_string());
+    en_translations.insert("Light".to_string(), "Light".to_string());
+    en_translations.insert("Dark".to_string(), "Dark".to_string());
+    en_translations.insert("Language".to_string(), "Language".to_string());
+    en_translations.insert("English".to_string(), "English".to_string());
+    en_translations.insert("Russian".to_string(), "Russian".to_string());
+    en_translations.insert("Launch at startup".to_string(), "Launch at startup".to_string());
+    en_translations.insert("Close Application".to_string(), "Close Application".to_string());
+    en_translations.insert("Timeframes".to_string(), "Timeframes".to_string());
+    map.insert("en".to_string(), en_translations);
+
+    let mut ru_translations = std::collections::HashMap::new();
+    ru_translations.insert("24 hours".to_string(), "24 часа".to_string());
+    ru_translations.insert("1 week".to_string(), "1 неделя".to_string());
+    ru_translations.insert("1 month".to_string(), "1 месяц".to_string());
+    ru_translations.insert("1 year".to_string(), "1 год".to_string());
+    ru_translations.insert("Themes".to_string(), "Темы".to_string());
+    ru_translations.insert("Light".to_string(), "Светлая".to_string());
+    ru_translations.insert("Dark".to_string(), "Темная".to_string());
+    ru_translations.insert("Language".to_string(), "Язык".to_string());
+    ru_translations.insert("English".to_string(), "Английский".to_string());
+    ru_translations.insert("Russian".to_string(), "Русский".to_string());
+    ru_translations.insert("Launch at startup".to_string(), "Запускать при старте".to_string());
+    ru_translations.insert("Close Application".to_string(), "Закрыть приложение".to_string());
+    ru_translations.insert("Timeframes".to_string(), "Таймфреймы".to_string());
+    map.insert("ru".to_string(), ru_translations);
+
+    map
+}
+
+fn get_translated_string(key: &str) -> String {
+    let lang = CURRENT_LANGUAGE.lock().unwrap();
+    let translations = get_translation_map();
+    translations.get(&*lang)
+        .and_then(|l| l.get(key))
+        .unwrap_or(&key.to_string())
+        .clone()
+}
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -68,17 +131,30 @@ pub fn run() {
             });
 
             // Create menu items
-            let tf_24h = CheckMenuItem::with_id(handle, "24h", "24 hours", true, true, None::<&str>)?;
-            let tf_1w = CheckMenuItem::with_id(handle, "1w", "1 week", true, false, None::<&str>)?;
-            let tf_1m = CheckMenuItem::with_id(handle, "1m", "1 month", true, false, None::<&str>)?;
-            let tf_1y = CheckMenuItem::with_id(handle, "1y", "1 year", true, false, None::<&str>)?;
-            let theme_light = CheckMenuItem::with_id(handle, "theme_light", "Light", true, true, None::<&str>)?;
-            let theme_dark = CheckMenuItem::with_id(handle, "theme_dark", "Dark", true, false, None::<&str>)?;
+            let tf_24h = CheckMenuItem::with_id(handle, "24h", get_translated_string("24 hours"), true, true, None::<&str>)?;
+            let tf_1w = CheckMenuItem::with_id(handle, "1w", get_translated_string("1 week"), true, false, None::<&str>)?;
+            let tf_1m = CheckMenuItem::with_id(handle, "1m", get_translated_string("1 month"), true, false, None::<&str>)?;
+            let tf_1y = CheckMenuItem::with_id(handle, "1y", get_translated_string("1 year"), true, false, None::<&str>)?;
+            let theme_light = CheckMenuItem::with_id(handle, "theme_light", get_translated_string("Light"), true, true, None::<&str>)?;
+            let theme_dark = CheckMenuItem::with_id(handle, "theme_dark", get_translated_string("Dark"), true, false, None::<&str>)?;
+
+            let lang_en = CheckMenuItem::with_id(handle, "lang_en", get_translated_string("English"), true, true, None::<&str>)?;
+            let lang_ru = CheckMenuItem::with_id(handle, "lang_ru", "Русский", true, false, None::<&str>)?;
+
+            // Store language menu items globally
+            *LANG_EN_MENU_ITEM.lock().unwrap() = Some(lang_en.clone());
+            *LANG_RU_MENU_ITEM.lock().unwrap() = Some(lang_ru.clone());
+            *TF_24H_MENU_ITEM.lock().unwrap() = Some(tf_24h.clone());
+            *TF_1W_MENU_ITEM.lock().unwrap() = Some(tf_1w.clone());
+            *TF_1M_MENU_ITEM.lock().unwrap() = Some(tf_1m.clone());
+            *TF_1Y_MENU_ITEM.lock().unwrap() = Some(tf_1y.clone());
+            *THEME_LIGHT_MENU_ITEM.lock().unwrap() = Some(theme_light.clone());
+            *THEME_DARK_MENU_ITEM.lock().unwrap() = Some(theme_dark.clone());
 
             // Create the Submenu object for themes
             let theme_submenu = tauri::menu::Submenu::with_items(
                 handle,
-                "Themes",
+                get_translated_string("Themes"),
                 true,
                 &[
                     &theme_light,
@@ -86,14 +162,27 @@ pub fn run() {
                 ],
             )?;
 
+            // Create the Submenu object for language
+            let lang_submenu = tauri::menu::Submenu::with_items(
+                handle,
+                get_translated_string("Language"),
+                true,
+                &[
+                    &lang_en,
+                    &lang_ru,
+                ],
+            )?;
+
             let autostart_status = handle.autolaunch().is_enabled().unwrap_or(false);
-            let autostart_item = CheckMenuItem::with_id(handle, "autostart", "Launch at startup", true, autostart_status, None::<&str>)?;
-            let quit = MenuItem::with_id(handle, "quit", "Close Application", true, None::<&str>)?;
+            let autostart_item = CheckMenuItem::with_id(handle, "autostart", get_translated_string("Launch at startup"), true, autostart_status, None::<&str>)?;
+            *AUTOSTART_MENU_ITEM.lock().unwrap() = Some(autostart_item.clone());
+            let quit = MenuItem::with_id(handle, "quit", get_translated_string("Close Application"), true, None::<&str>)?;
+            *QUIT_MENU_ITEM.lock().unwrap() = Some(quit.clone());
 
             // Create the Submenu object with items
             let timeframe_submenu = tauri::menu::Submenu::with_items(
                 handle,
-                "Timeframes",
+                get_translated_string("Timeframes"),
                 true,
                 &[
                     &tf_24h,
@@ -108,6 +197,7 @@ pub fn run() {
                 &[
                     &timeframe_submenu,
                     &theme_submenu, // Add the theme submenu here
+                    &lang_submenu, // Add the language submenu here
                     &tauri::menu::PredefinedMenuItem::separator(handle)?,
                     &autostart_item,
                     &quit,
@@ -122,6 +212,8 @@ pub fn run() {
             let autostart_item_clone = autostart_item.clone();
             let theme_light_clone = theme_light.clone();
             let theme_dark_clone = theme_dark.clone();
+            let lang_en_clone = lang_en.clone();
+            let lang_ru_clone = lang_ru.clone();
 
             app.on_menu_event(move |app_handle, event| {
                 let id = event.id.0.as_str();
@@ -137,6 +229,47 @@ pub fn run() {
                         theme_light_clone.set_checked(id == "theme_light").unwrap();
                         theme_dark_clone.set_checked(id == "theme_dark").unwrap();
                         let _ = app_handle.emit("theme-changed", id);
+                    }
+                    "lang_en" | "lang_ru" => {
+                        let new_lang = if id == "lang_en" { "en" } else { "ru" };
+                        *CURRENT_LANGUAGE.lock().unwrap() = new_lang.to_string();
+
+                        lang_en_clone.set_checked(id == "lang_en").unwrap();
+                        lang_ru_clone.set_checked(id == "lang_ru").unwrap();
+
+                        // Update all menu item texts
+                        if let Some(item) = LANG_EN_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text("English").unwrap();
+                        }
+                        if let Some(item) = LANG_RU_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text("Русский").unwrap();
+                        }
+                        if let Some(item) = TF_24H_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text(get_translated_string("24 hours")).unwrap();
+                        }
+                        if let Some(item) = TF_1W_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text(get_translated_string("1 week")).unwrap();
+                        }
+                        if let Some(item) = TF_1M_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text(get_translated_string("1 month")).unwrap();
+                        }
+                        if let Some(item) = TF_1Y_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text(get_translated_string("1 year")).unwrap();
+                        }
+                        if let Some(item) = THEME_LIGHT_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text(get_translated_string("Light")).unwrap();
+                        }
+                        if let Some(item) = THEME_DARK_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text(get_translated_string("Dark")).unwrap();
+                        }
+                        if let Some(item) = AUTOSTART_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text(get_translated_string("Launch at startup")).unwrap();
+                        }
+                        if let Some(item) = QUIT_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text(get_translated_string("Close Application")).unwrap();
+                        }
+                        
+                        let _ = app_handle.emit("language-changed", id);
                     }
                     "autostart" => {
                         let current_status = autostart_item_clone.is_checked().unwrap_or(false);

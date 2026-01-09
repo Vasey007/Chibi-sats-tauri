@@ -3,6 +3,7 @@ import "./App.css";
 import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { useTranslation } from "react-i18next";
 
 const REFRESH_INTERVAL_MS = 5000;
 
@@ -19,6 +20,7 @@ const calculatePercentageChange = (prices: number[]): number | null => {
 };
 
 function App() {
+  const { t, i18n } = useTranslation();
   const [priceUsd, setPriceUsd] = useState<number | null>(null);
   const [change24h, setChange24h] = useState<number | null>(null);
   const [change1w, setChange1w] = useState<number | null>(null);
@@ -91,10 +93,10 @@ function App() {
           setChange24h(parseFloat(item.price24hPcnt) * 100);
           setError(null);
         } else {
-          throw new Error("Error loading price");
+          throw new Error(t("Error loading price"));
         }
       } catch (err) {
-        const errorMessage = "No connection to Bybit API, trying again";
+        const errorMessage = t("No connection to Bybit API, trying again");
         setError(errorMessage);
         console.error("Error fetching price from Bybit:", err);
       }
@@ -161,6 +163,26 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    // Слушаем изменение языка из нативного меню
+    let unlistenPromise: Promise<() => void>;
+    unlistenPromise = listen<string>("language-changed", (event) => {
+      console.log("Language changed event received:", event.payload);
+      const lang = event.payload === "lang_en" ? "en" : "ru";
+      console.log("Changing language to:", lang);
+      i18n.changeLanguage(lang);
+      console.log("Current i18n language after change:", i18n.language);
+    });
+
+    return () => {
+      unlistenPromise.then(unlisten => {
+        if (unlisten) {
+          unlisten();
+        }
+      });
+    };
+  }, []);
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     invoke("show_context_menu");
@@ -192,15 +214,15 @@ function App() {
         <PriceChart data={chartData} color={currentChange && currentChange >= 0 ? "#22c55e" : "#ef4444"} />
       </div>
       <div className="titlebar" style={{ position: 'relative', zIndex: 1 }} data-tauri-drag-region>
-        <span className="title" data-tauri-drag-region>Chibi Sats</span>
+        <span className="title" data-tauri-drag-region>{t("Chibi Sats")}</span>
       </div>
       <div className="content" style={{ position: 'relative', zIndex: 1 }} data-tauri-drag-region>
-        {priceUsd === null && !error && <div>Loading...</div>}
+        {priceUsd === null && !error && <div>{t("Loading...")}</div>}
         {priceUsd === null && error && <div className="error">{error}</div>}
         {priceUsd !== null && (
           <div className="price" data-tauri-drag-region>
             <div data-tauri-drag-region>
-              BTC: <span className="price-value" data-tauri-drag-region>${priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+              {t("BTC")}: <span className="price-value" data-tauri-drag-region>${priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
             </div>
             {currentChange !== null && (
               <div className={`change ${currentChange >= 0 ? "up" : "down"}`} data-tauri-drag-region>
