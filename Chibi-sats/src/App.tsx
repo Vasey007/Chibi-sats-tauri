@@ -134,11 +134,12 @@ function App() {
       setTimeframe(event.payload as Timeframe);
     });
 
-    return async () => {
-      const unlisten = await unlistenPromise;
-      if (unlisten) {
-        unlisten();
-      }
+    return () => {
+      unlistenPromise.then(unlisten => {
+        if (unlisten) {
+          unlisten();
+        }
+      });
     };
   }, []);
 

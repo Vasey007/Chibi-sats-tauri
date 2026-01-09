@@ -1,6 +1,6 @@
 use tauri::{
     menu::{ContextMenu, Menu, MenuItem, CheckMenuItem},
-    Emitter, Manager,
+    Emitter, Manager, PhysicalPosition, PhysicalSize,
 };
 
 struct MenuState(Menu<tauri::Wry>);
@@ -27,6 +27,21 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![greet, show_context_menu])
         .setup(|app| {
             let handle = app.handle();
+
+            // Get the main window
+            let window = app.get_webview_window("main").unwrap();
+
+            // Get the primary monitor
+            if let Some(monitor) = window.primary_monitor().unwrap() {
+                let screen_size = monitor.size();
+                let window_size = window.outer_size().unwrap();
+
+                // Calculate position for bottom-right corner
+                let x = screen_size.width - window_size.width - 10; // 10px padding from right
+                let y = screen_size.height - window_size.height - 10; // 10px padding from bottom
+
+                window.set_position(PhysicalPosition::new(x, y)).unwrap();
+            }
 
             // Create menu items
             let tf_24h = CheckMenuItem::with_id(handle, "24h", "24 hours", true, true, None::<&str>)?;
