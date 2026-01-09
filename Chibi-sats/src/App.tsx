@@ -26,6 +26,7 @@ function App() {
   const [chartData, setChartData] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("24h");
+  const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
 
   // Use useRef to store chart data for different timeframes
   const allChartData = useRef<Record<Timeframe, number[]>>({
@@ -109,8 +110,8 @@ function App() {
           case "1y": setChange1y(change); break;
         }
       }
-      // Set initial chart data after all historical data is fetched
-      setChartData(allChartData.current[timeframe]);
+      // Increment counter to trigger chart data update
+      setDataUpdatedCounter(prev => prev + 1);
     };
 
     fetchData(); // Initial fetch
@@ -122,10 +123,10 @@ function App() {
     return () => clearInterval(interval);
   }, []); // Empty dependency array to run once on mount
 
-  // Update chartData when timeframe changes
+  // Update chartData when timeframe changes or data is updated
   useEffect(() => {
     setChartData(allChartData.current[timeframe]);
-  }, [timeframe]);
+  }, [timeframe, dataUpdatedCounter]);
 
   useEffect(() => {
     // Слушаем изменение таймфрейма из нативного меню

@@ -18,6 +18,8 @@
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "minimizable": false,
         "x": 1520,
         "y": 940
       }
