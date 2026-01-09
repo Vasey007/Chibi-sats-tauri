@@ -32,7 +32,7 @@ function App() {
     const fetchPrice = async () => {
       try {
         const response = await fetch(
-          "https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT"
+          "https://api.bybit.com/v5/market/tickers?category=inverse&symbol=BTCUSD"
         );
         
         if (!response.ok) {
@@ -60,7 +60,7 @@ function App() {
       try {
         const { interval, limit } = getKlineParams(timeframe);
         const response = await fetch(
-          `https://api.bybit.com/v5/market/kline?category=linear&symbol=BTCUSDT&interval=${interval}&limit=${limit}`
+          `https://api.bybit.com/v5/market/kline?category=inverse&symbol=BTCUSD&interval=${interval}&limit=${limit}`
         );
         if (!response.ok) return;
         const data = await response.json();
