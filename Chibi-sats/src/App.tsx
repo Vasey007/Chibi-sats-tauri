@@ -4,6 +4,8 @@ import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
+
+
 const REFRESH_INTERVAL_MS = 5000;
 
 type Timeframe = "24h" | "1w" | "1m" | "1y";
