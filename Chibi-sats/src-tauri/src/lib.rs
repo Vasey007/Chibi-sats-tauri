@@ -76,20 +76,30 @@ pub fn run() {
             let autostart_item = CheckMenuItem::with_id(handle, "autostart", "Launch at startup", true, autostart_status, None::<&str>)?;
             let quit = MenuItem::with_id(handle, "quit", "Close Application", true, None::<&str>)?;
 
-            let menu = Menu::with_items(
+            // Create the Submenu object with items
+            let timeframe_submenu = tauri::menu::Submenu::with_items(
                 handle,
+                "Timeframes",
+                true,
                 &[
                     &tf_24h,
                     &tf_1w,
                     &tf_1m,
                     &tf_1y,
+                ],
+            )?;
+
+            let menu = Menu::with_items(
+                handle,
+                &[
+                    &timeframe_submenu,
                     &tauri::menu::PredefinedMenuItem::separator(handle)?,
                     &autostart_item,
                     &quit,
                 ],
             )?;
 
-            let handle_clone = handle.clone();
+            let _handle_clone = handle.clone();
             let tf_24h_clone = tf_24h.clone();
             let tf_1w_clone = tf_1w.clone();
             let tf_1m_clone = tf_1m.clone();
