@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import './AdBanner.css';
-import { open } from '@tauri-apps/plugin-shell';
 
 interface AdBannerProps {
   theme: 'light' | 'dark';
@@ -42,9 +41,9 @@ const AdBanner: React.FC<AdBannerProps> = ({ theme }) => {
 
   return (
     <div className={`ad-banner ${theme} ${isVisible ? 'visible' : ''}`}>
-      <span onClick={handleAdClick} className="ad-link">
-        Ad: Click here for a special offer!
-      </span>
+      <a href="https://www.bybit.com/invite?ref=WQKDQG4" target="_blank" rel="noopener noreferrer" className="ad-link">
+                Ad: Buy BTC on Bybit
+              </a>
       <button onClick={handleClose} className="close-button">
         &times;
       </button>
