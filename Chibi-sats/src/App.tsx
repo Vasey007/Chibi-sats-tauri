@@ -4,6 +4,7 @@ import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useTranslation } from "react-i18next";
+import AdBanner from "./components/AdBanner";
 
 const REFRESH_INTERVAL_MS = 5000;
 
@@ -207,6 +208,7 @@ function App() {
       onContextMenu={handleContextMenu}
       data-tauri-drag-region
     >
+      <AdBanner theme={theme} />
       <div 
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none', opacity: 0.6 }}
         data-tauri-drag-region
