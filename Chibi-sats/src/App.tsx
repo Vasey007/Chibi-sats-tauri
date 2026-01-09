@@ -104,7 +104,6 @@ function App() {
         allChartData.current[tf] = prices; // Store all prices
         const change = calculatePercentageChange(prices);
         switch (tf) {
-          case "24h": setChange24h(change); break; // This will be overwritten by ticker data if available
           case "1w": setChange1w(change); break;
           case "1m": setChange1m(change); break;
           case "1y": setChange1y(change); break;
