@@ -28,12 +28,12 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle();
 
-            // Создаем элементы меню
-            let tf_24h = MenuItem::with_id(handle, "24h", "График за 24 часа", true, None::<&str>)?;
-            let tf_1w = MenuItem::with_id(handle, "1w", "1 неделя", true, None::<&str>)?;
-            let tf_1m = MenuItem::with_id(handle, "1m", "1 месяц", true, None::<&str>)?;
-            let tf_1y = MenuItem::with_id(handle, "1y", "1 год", true, None::<&str>)?;
-            let quit = MenuItem::with_id(handle, "quit", "Закрыть приложение", true, None::<&str>)?;
+            // Create menu items
+            let tf_24h = MenuItem::with_id(handle, "24h", "24 hours", true, None::<&str>)?;
+            let tf_1w = MenuItem::with_id(handle, "1w", "1 week", true, None::<&str>)?;
+            let tf_1m = MenuItem::with_id(handle, "1m", "1 month", true, None::<&str>)?;
+            let tf_1y = MenuItem::with_id(handle, "1y", "1 year", true, None::<&str>)?;
+            let quit = MenuItem::with_id(handle, "quit", "Close Application", true, None::<&str>)?;
 
             let menu = Menu::with_items(
                 handle,

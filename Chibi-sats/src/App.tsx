@@ -36,7 +36,7 @@ function App() {
         );
         
         if (!response.ok) {
-          throw new Error("Ошибка загрузки цены");
+          throw new Error("Error loading price");
         }
 
         const data = await response.json();
@@ -47,10 +47,10 @@ function App() {
           setChange24h(parseFloat(item.price24hPcnt) * 100);
           setError(null);
         } else {
-          throw new Error("Ошибка загрузки цены");
+          throw new Error("Error loading price");
         }
       } catch (err) {
-        const errorMessage = "Нет связи с API Bybit, попробую ещё раз";
+        const errorMessage = "No connection to Bybit API, trying again";
         setError(errorMessage);
         console.error("Error fetching price from Bybit:", err);
       }
@@ -119,7 +119,7 @@ function App() {
         <span className="title" data-tauri-drag-region>Chibi Sats</span>
       </div>
       <div className="content" style={{ position: 'relative', zIndex: 1 }} data-tauri-drag-region>
-        {priceUsd === null && !error && <div>Загрузка...</div>}
+        {priceUsd === null && !error && <div>Loading...</div>}
         {priceUsd === null && error && <div className="error">{error}</div>}
         {priceUsd !== null && (
           <div className="price" data-tauri-drag-region>
