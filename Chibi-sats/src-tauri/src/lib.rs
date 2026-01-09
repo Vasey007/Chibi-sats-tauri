@@ -1,5 +1,5 @@
 use tauri::{
-    menu::{ContextMenu, Menu, MenuItem},
+    menu::{ContextMenu, Menu, MenuItem, CheckMenuItem},
     Emitter, Manager,
 };
 
@@ -29,10 +29,10 @@ pub fn run() {
             let handle = app.handle();
 
             // Create menu items
-            let tf_24h = MenuItem::with_id(handle, "24h", "24 hours", true, None::<&str>)?;
-            let tf_1w = MenuItem::with_id(handle, "1w", "1 week", true, None::<&str>)?;
-            let tf_1m = MenuItem::with_id(handle, "1m", "1 month", true, None::<&str>)?;
-            let tf_1y = MenuItem::with_id(handle, "1y", "1 year", true, None::<&str>)?;
+            let tf_24h = CheckMenuItem::with_id(handle, "24h", "24 hours", true, true, None::<&str>)?;
+            let tf_1w = CheckMenuItem::with_id(handle, "1w", "1 week", true, false, None::<&str>)?;
+            let tf_1m = CheckMenuItem::with_id(handle, "1m", "1 month", true, false, None::<&str>)?;
+            let tf_1y = CheckMenuItem::with_id(handle, "1y", "1 year", true, false, None::<&str>)?;
             let quit = MenuItem::with_id(handle, "quit", "Close Application", true, None::<&str>)?;
 
             let menu = Menu::with_items(
@@ -48,14 +48,23 @@ pub fn run() {
             )?;
 
             let handle_clone = handle.clone();
-            app.on_menu_event(move |_app, event| {
+            let tf_24h_clone = tf_24h.clone();
+            let tf_1w_clone = tf_1w.clone();
+            let tf_1m_clone = tf_1m.clone();
+            let tf_1y_clone = tf_1y.clone();
+
+            app.on_menu_event(move |app_handle, event| {
                 let id = event.id.0.as_str();
                 match id {
                     "24h" | "1w" | "1m" | "1y" => {
-                        let _ = handle_clone.emit("timeframe-changed", id);
+                        tf_24h_clone.set_checked(id == "24h").unwrap();
+                        tf_1w_clone.set_checked(id == "1w").unwrap();
+                        tf_1m_clone.set_checked(id == "1m").unwrap();
+                        tf_1y_clone.set_checked(id == "1y").unwrap();
+                        let _ = app_handle.emit("timeframe-changed", id);
                     }
                     "quit" => {
-                        handle_clone.exit(0);
+                        app_handle.exit(0);
                     }
                     _ => {}
                 }
