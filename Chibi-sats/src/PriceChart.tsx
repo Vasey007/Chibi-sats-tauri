@@ -1,88 +1,60 @@
-import { useEffect, useRef } from "react";
-import { createChart, IChartApi, ISeriesApi, AreaData } from "lightweight-charts";
+import { useMemo } from "react";
 
 interface PriceChartProps {
-  containerRef: React.RefObject<HTMLDivElement>;
+  data: number[];
+  color?: string;
 }
 
-export default function PriceChart({ containerRef }: PriceChartProps) {
-  const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    // Генерируем мок-данные: 30 точек
-    const mockData: AreaData[] = [];
-    const basePrice = 95000;
-    const now = Math.floor(Date.now() / 1000);
+export default function PriceChart({ data, color = "#f7931a" }: PriceChartProps) {
+  const { pathD, areaD } = useMemo(() => {
+    if (!data || data.length < 2) return { pathD: "", areaD: "" };
     
-    for (let i = 0; i < 30; i++) {
-      const time = (now - (29 - i) * 3600) as any; // последние 30 часов
-      const variation = (Math.random() - 0.5) * 2000; // случайное отклонение ±1000
-      const value = basePrice + variation;
-      mockData.push({ time, value });
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    
+    // SVG coordinate space: 0,0 is top-left.
+    // We map index to x (0..100) and value to y (100..0).
+    // Adding some padding to y so it doesn't touch edges strictly if we want
+    
+    const points = data.map((value, index) => {
+      const x = (index / (data.length - 1)) * 100;
+      // Normalize value: (value - min) / range -> 0..1
+      // Invert for Y: 1 - normalized
+      const normalizedY = (value - min) / range;
+      // Let's use 5% padding top and bottom
+      const y = 95 - (normalizedY * 90); 
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    });
+
+    let d = `M ${points[0]}`;
+    for (let i = 1; i < points.length; i++) {
+      d += ` L ${points[i]}`;
     }
+    
+    const area = `${d} L 100,100 L 0,100 Z`;
+    
+    return { pathD: d, areaD: area };
+  }, [data]);
 
-    const chart = createChart(containerRef.current, {
-      width: containerRef.current.clientWidth,
-      height: containerRef.current.clientHeight,
-      layout: {
-        background: {
-          type: "solid",
-          color: "transparent",
-        },
-        textColor: "#ffffff",
-      },
-      grid: {
-        vertLines: {
-          visible: false,
-        },
-        horzLines: {
-          visible: false,
-        },
-      },
-      rightPriceScale: {
-        visible: false,
-      },
-      timeScale: {
-        visible: false,
-      },
-      handleScroll: false,
-      handleScale: false,
-    });
+  if (!data || data.length < 2) return null;
 
-    const areaSeries = chart.addAreaSeries({
-      lineColor: "#f7931a",
-      topColor: "rgba(247, 147, 26, 0.3)",
-      bottomColor: "rgba(247, 147, 26, 0.0)",
-      lineWidth: 2,
-    });
-
-    areaSeries.setData(mockData);
-    chart.timeScale().fitContent();
-
-    chartRef.current = chart;
-    seriesRef.current = areaSeries;
-
-    const handleResize = () => {
-      if (containerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        });
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      if (chartRef.current) {
-        chartRef.current.remove();
-      }
-    };
-  }, [containerRef]);
-
-  return null;
+  return (
+    <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+      <svg 
+        viewBox="0 0 100 100" 
+        preserveAspectRatio="none" 
+        style={{ width: '100%', height: '100%', display: 'block' }}
+      >
+        <defs>
+          <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.6" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.1" />
+          </linearGradient>
+        </defs>
+        <path d={areaD} fill="url(#chartGradient)" stroke="none" />
+        <path d={pathD} fill="none" stroke={color} strokeWidth="3" vectorEffect="non-scaling-stroke" />
+      </svg>
+    </div>
+  );
 }
