@@ -26,3 +26,11 @@ tauri-plugin-shell = "2"
 tauri-plugin-autostart = "2"
 lazy_static = "1.4.0"
 
+[profile.release]
+opt-level = "z"     # Оптимизация по размеру (z или s)
+lto = true           # Link Time Optimization (уменьшает размер, увеличивает время сборки)
+codegen-units = 1    # Уменьшает параллелизм компиляции для лучшей оптимизации
+panic = "abort"      # Убирает размотку стека при панике (уменьшает размер и потребление памяти)
+strip = true         # Автоматически удаляет отладочные символы из бинарника
+
+
