@@ -357,6 +357,9 @@ pub fn run() {
                     "about" => {
                         log::info!("'About' menu item clicked");
                         let lang = if *CURRENT_LANGUAGE.lock().unwrap() == "ru" { "ru" } else { "en" };
+                        
+                        // В Tauri v2 при использовании Vite многостраничность работает через URL вида about.html
+                        // В режиме разработки это /about.html, в билде это тоже /about.html
                         let about_url = format!("about.html?lang={}", lang);
                         
                         use tauri::Manager;
