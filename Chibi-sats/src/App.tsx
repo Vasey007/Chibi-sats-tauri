@@ -91,7 +91,7 @@ function App() {
         if (data.retCode === 0 && data.result && data.result.list && data.result.list.length > 0) {
           const item = data.result.list[0];
           setPriceUsd(parseFloat(item.lastPrice));
-          setChange24h(parseFloat(item.price24hPcnt) * 100);
+          // Мы больше не берем процент из тикера, чтобы он не расходился с графиком
           setError(null);
         } else {
           throw new Error(t("Error loading price"));
@@ -109,6 +109,7 @@ function App() {
         allChartData.current[tf] = prices; // Store all prices
         const change = calculatePercentageChange(prices);
         switch (tf) {
+          case "24h": setChange24h(change); break;
           case "1w": setChange1w(change); break;
           case "1m": setChange1m(change); break;
           case "1y": setChange1y(change); break;

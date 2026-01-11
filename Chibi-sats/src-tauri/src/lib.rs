@@ -53,8 +53,8 @@ fn get_translation_map() -> std::collections::HashMap<String, std::collections::
     ru_translations.insert("Language".to_string(), "Язык".to_string());
     ru_translations.insert("English".to_string(), "Английский".to_string());
     ru_translations.insert("Russian".to_string(), "Русский".to_string());
-    ru_translations.insert("Launch at startup".to_string(), "Запускать при старте".to_string());
-    ru_translations.insert("Close Application".to_string(), "Закрыть приложение".to_string());
+    ru_translations.insert("Launch at startup".to_string(), "Автозагрузка".to_string());
+    ru_translations.insert("Close Widget".to_string(), "Закрыть виджет".to_string());
     ru_translations.insert("Timeframes".to_string(), "Таймфреймы".to_string());
     map.insert("ru".to_string(), ru_translations);
 
@@ -198,11 +198,25 @@ pub fn run() {
                 ],
             )?;
 
-            let autostart_status = handle.autolaunch().is_enabled().unwrap_or(false);
-            log::info!("Initial autostart status: {}", autostart_status);
-            let autostart_item = CheckMenuItem::with_id(handle, "autostart", get_translated_string("Launch at startup"), true, autostart_status, None::<&str>)?;
+            let is_autostart_enabled = handle.autolaunch().is_enabled().unwrap_or(false);
+            log::info!("Initial autostart status: {}", is_autostart_enabled);
+            let autostart_item = CheckMenuItem::with_id(handle, "autostart", get_translated_string("Launch at startup"), true, is_autostart_enabled, None::<&str>)?;
+
+            // Если автозагрузка еще не включена, включаем её автоматически при первом запуске
+            if !is_autostart_enabled {
+                log::info!("First run or autostart disabled. Enabling autostart automatically...");
+                match handle.autolaunch().enable() {
+                    Ok(_) => {
+                        log::info!("Successfully enabled autostart on first run");
+                        autostart_item.set_checked(true).unwrap();
+                    },
+                    Err(e) => log::error!("Failed to enable autostart on first run: {}", e),
+                }
+            } else {
+                autostart_item.set_checked(true).unwrap();
+            }
             *AUTOSTART_MENU_ITEM.lock().unwrap() = Some(autostart_item.clone());
-            let quit = MenuItem::with_id(handle, "quit", get_translated_string("Close Application"), true, None::<&str>)?;
+            let quit = MenuItem::with_id(handle, "quit", get_translated_string("Close Widget"), true, None::<&str>)?;
             *QUIT_MENU_ITEM.lock().unwrap() = Some(quit.clone());
 
             // Create the Submenu object with items
@@ -292,7 +306,7 @@ pub fn run() {
                             item.set_text(get_translated_string("Launch at startup")).unwrap();
                         }
                         if let Some(item) = QUIT_MENU_ITEM.lock().unwrap().as_ref() {
-                            item.set_text(get_translated_string("Close Application")).unwrap();
+                            item.set_text(get_translated_string("Close Widget")).unwrap();
                         }
                         
                         let _ = app_handle.emit("language-changed", id);
