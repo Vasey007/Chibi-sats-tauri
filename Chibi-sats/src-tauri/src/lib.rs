@@ -104,6 +104,10 @@ async fn get_autostart_status(app_handle: tauri::AppHandle) -> Result<bool, Stri
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[tauri::command]
 fn open_external_url(app_handle: tauri::AppHandle, url: String) -> Result<(), String> {
+    // Валидация URL перед открытием
+    if !url.starts_with("https://t.me/") && !url.starts_with("https://www.bybit.com/") {
+        return Err("Unauthorized URL".to_string());
+    }
     use tauri_plugin_opener::OpenerExt;
     app_handle.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }

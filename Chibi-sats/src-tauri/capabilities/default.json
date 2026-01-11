@@ -3,13 +3,14 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main",
+    "about"
   ],
   "permissions": [
     "core:default",
     "opener:default",
-    "shell:default",
     "autostart:default",
-    "core:window:allow-start-dragging"
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-focus"
   ]
 }

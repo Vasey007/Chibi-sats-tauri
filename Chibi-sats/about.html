@@ -110,23 +110,72 @@
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'ru';
 
-        if (lang === 'en') {
-            document.title = 'About Developer';
-            document.getElementById('title').innerText = 'About Developer';
+        if (lang === 'ru') {
+            document.getElementById('title').textContent = 'Об авторе';
+            document.getElementById('author').innerHTML = 'Автор: <strong>Василий Непытаев</strong>';
+            document.getElementById('year').innerHTML = 'Год создания: <strong>2026</strong>';
+            
+            const contactsContainer = document.getElementById('contacts');
+            contactsContainer.innerHTML = '';
+            
+            const p = document.createElement('p');
+            p.textContent = 'Контакты:';
+            contactsContainer.appendChild(p);
+            
+            const tgRow = document.createElement('div');
+            tgRow.className = 'contact-row';
+            tgRow.innerHTML = '<span class="contact-label">Telegram:</span> ';
+            const tgLink = document.createElement('a');
+            tgLink.href = '#';
+            tgLink.className = 'contact-link';
+            tgLink.textContent = '@Newpepol';
+            tgLink.onclick = () => openExternal('https://t.me/Newpepol');
+            tgRow.appendChild(tgLink);
+            contactsContainer.appendChild(tgRow);
+            
+            const emailRow = document.createElement('div');
+            emailRow.className = 'contact-row';
+            emailRow.innerHTML = '<span class="contact-label">Email:</span> ';
+            const emailVal = document.createElement('span');
+            emailVal.className = 'contact-value';
+            emailVal.textContent = 'karta.hai@yandex.ru';
+            emailRow.appendChild(emailVal);
+            contactsContainer.appendChild(emailRow);
+
+            document.getElementById('closeBtn').textContent = 'Закрыть';
+        } else {
+            document.getElementById('title').textContent = 'About Developer';
             document.getElementById('author').innerHTML = 'Author: <strong>Vasily Nepytaev</strong>';
             document.getElementById('year').innerHTML = 'Year of creation: <strong>2026</strong>';
-            document.getElementById('contacts').innerHTML = `
-                <p>Contacts:</p>
-                <div class="contact-row">
-                    <span class="contact-label">Telegram:</span>
-                    <a href="#" onclick="openExternal('https://t.me/Newpepol')" class="contact-link">@Newpepol</a>
-                </div>
-                <div class="contact-row">
-                    <span class="contact-label">Email:</span>
-                    <span class="contact-value">karta.hai@yandex.ru</span>
-                </div>
-            `;
-            document.getElementById('closeBtn').innerText = 'Close';
+            
+            const contactsContainer = document.getElementById('contacts');
+            contactsContainer.innerHTML = '';
+            
+            const p = document.createElement('p');
+            p.textContent = 'Contacts:';
+            contactsContainer.appendChild(p);
+            
+            const tgRow = document.createElement('div');
+            tgRow.className = 'contact-row';
+            tgRow.innerHTML = '<span class="contact-label">Telegram:</span> ';
+            const tgLink = document.createElement('a');
+            tgLink.href = '#';
+            tgLink.className = 'contact-link';
+            tgLink.textContent = '@Newpepol';
+            tgLink.onclick = () => openExternal('https://t.me/Newpepol');
+            tgRow.appendChild(tgLink);
+            contactsContainer.appendChild(tgRow);
+            
+            const emailRow = document.createElement('div');
+            emailRow.className = 'contact-row';
+            emailRow.innerHTML = '<span class="contact-label">Email:</span> ';
+            const emailVal = document.createElement('span');
+            emailVal.className = 'contact-value';
+            emailVal.textContent = 'karta.hai@yandex.ru';
+            emailRow.appendChild(emailVal);
+            contactsContainer.appendChild(emailRow);
+
+            document.getElementById('closeBtn').textContent = 'Close';
         }
     </script>
 </body>
