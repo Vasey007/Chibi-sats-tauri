@@ -22,52 +22,55 @@ lazy_static! {
     static ref QUIT_MENU_ITEM: Mutex<Option<MenuItem<tauri::Wry>>> = Mutex::new(None);
 }
 
-fn get_translation_map() -> std::collections::HashMap<String, std::collections::HashMap<String, String>> {
-    let mut map = std::collections::HashMap::new();
+lazy_static! {
+    static ref TRANSLATION_MAP: std::collections::HashMap<String, std::collections::HashMap<String, String>> = {
+        let mut map = std::collections::HashMap::new();
 
-    let mut en_translations = std::collections::HashMap::new();
-    en_translations.insert("24 hours".to_string(), "24 hours".to_string());
-    en_translations.insert("1 week".to_string(), "1 week".to_string());
-    en_translations.insert("1 month".to_string(), "1 month".to_string());
-    en_translations.insert("1 year".to_string(), "1 year".to_string());
-    en_translations.insert("Themes".to_string(), "Themes".to_string());
-    en_translations.insert("Light".to_string(), "Light".to_string());
-    en_translations.insert("Dark".to_string(), "Dark".to_string());
-    en_translations.insert("Language".to_string(), "Language".to_string());
-    en_translations.insert("English".to_string(), "English".to_string());
-    en_translations.insert("Russian".to_string(), "Russian".to_string());
-    en_translations.insert("Launch at startup".to_string(), "Launch at startup".to_string());
-    en_translations.insert("Close Application".to_string(), "Close Application".to_string());
-    en_translations.insert("Timeframes".to_string(), "Timeframes".to_string());
-    map.insert("en".to_string(), en_translations);
+        let mut en_translations = std::collections::HashMap::new();
+        en_translations.insert("24 hours".to_string(), "24 hours".to_string());
+        en_translations.insert("1 week".to_string(), "1 week".to_string());
+        en_translations.insert("1 month".to_string(), "1 month".to_string());
+        en_translations.insert("1 year".to_string(), "1 year".to_string());
+        en_translations.insert("Themes".to_string(), "Themes".to_string());
+        en_translations.insert("Light".to_string(), "Light".to_string());
+        en_translations.insert("Dark".to_string(), "Dark".to_string());
+        en_translations.insert("Language".to_string(), "Language".to_string());
+        en_translations.insert("English".to_string(), "English".to_string());
+        en_translations.insert("Russian".to_string(), "Russian".to_string());
+        en_translations.insert("Launch at startup".to_string(), "Launch at startup".to_string());
+        en_translations.insert("Close Application".to_string(), "Close Application".to_string());
+        en_translations.insert("Timeframes".to_string(), "Timeframes".to_string());
+        en_translations.insert("About Author".to_string(), "About Author".to_string());
+        en_translations.insert("Close Widget".to_string(), "Close Widget".to_string());
+        map.insert("en".to_string(), en_translations);
 
-    let mut ru_translations = std::collections::HashMap::new();
-    ru_translations.insert("24 hours".to_string(), "24 часа".to_string());
-    ru_translations.insert("1 week".to_string(), "1 неделя".to_string());
-    ru_translations.insert("1 month".to_string(), "1 месяц".to_string());
-    ru_translations.insert("1 year".to_string(), "1 год".to_string());
-    ru_translations.insert("Themes".to_string(), "Темы".to_string());
-    ru_translations.insert("Light".to_string(), "Светлая".to_string());
-    ru_translations.insert("Dark".to_string(), "Темная".to_string());
-    ru_translations.insert("Language".to_string(), "Язык".to_string());
-    ru_translations.insert("English".to_string(), "Английский".to_string());
-    ru_translations.insert("Russian".to_string(), "Русский".to_string());
-    ru_translations.insert("Launch at startup".to_string(), "Автозагрузка".to_string());
-    ru_translations.insert("About Author".to_string(), "Об авторе".to_string());
-    ru_translations.insert("Close Widget".to_string(), "Закрыть виджет".to_string());
-    ru_translations.insert("Timeframes".to_string(), "Таймфреймы".to_string());
-    map.insert("ru".to_string(), ru_translations);
+        let mut ru_translations = std::collections::HashMap::new();
+        ru_translations.insert("24 hours".to_string(), "24 часа".to_string());
+        ru_translations.insert("1 week".to_string(), "1 неделя".to_string());
+        ru_translations.insert("1 month".to_string(), "1 месяц".to_string());
+        ru_translations.insert("1 year".to_string(), "1 год".to_string());
+        ru_translations.insert("Themes".to_string(), "Темы".to_string());
+        ru_translations.insert("Light".to_string(), "Светлая".to_string());
+        ru_translations.insert("Dark".to_string(), "Темная".to_string());
+        ru_translations.insert("Language".to_string(), "Язык".to_string());
+        ru_translations.insert("English".to_string(), "Английский".to_string());
+        ru_translations.insert("Russian".to_string(), "Русский".to_string());
+        ru_translations.insert("Launch at startup".to_string(), "Автозагрузка".to_string());
+        ru_translations.insert("About Author".to_string(), "Об авторе".to_string());
+        ru_translations.insert("Close Widget".to_string(), "Закрыть виджет".to_string());
+        ru_translations.insert("Timeframes".to_string(), "Таймфреймы".to_string());
+        map.insert("ru".to_string(), ru_translations);
 
-    map
+        map
+    };
 }
 
-fn get_translated_string(key: &str) -> String {
+fn get_translated_string(key: &'static str) -> &'static str {
     let lang = CURRENT_LANGUAGE.lock().unwrap();
-    let translations = get_translation_map();
-    translations.get(&*lang)
+    TRANSLATION_MAP.get(&*lang)
         .and_then(|l| l.get(key))
-        .unwrap_or(&key.to_string())
-        .clone()
+        .map(|s| s.as_str())
+        .unwrap_or(key)
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -114,7 +117,7 @@ fn open_external_url(app_handle: tauri::AppHandle, url: String) -> Result<(), St
 
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
+
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
         .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url])
