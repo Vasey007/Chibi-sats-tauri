@@ -31,9 +31,11 @@ const AdBanner: React.FC<AdBannerProps> = ({ theme }) => {
     sessionStorage.setItem('adBannerClosed', 'true');
   };
 
+  /*
   const handleAdClick = () => {
     open('https://www.google.com'); // Используем open для открытия в браузере
   };
+  */
 
   if (isClosed) {
     return null;

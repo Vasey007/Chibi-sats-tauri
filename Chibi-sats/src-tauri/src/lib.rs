@@ -4,6 +4,8 @@ use tauri::{
 };
 use lazy_static::lazy_static;
 use std::sync::Mutex;
+use log;
+use tauri_plugin_log::{Target, fern::colors::ColoredLevelConfig};
 
 struct MenuState(Menu<tauri::Wry>);
 
@@ -86,16 +88,28 @@ use tauri_plugin_autostart::ManagerExt;
 
 #[tauri::command]
 async fn set_autostart(app_handle: tauri::AppHandle, enable: bool) -> Result<(), String> {
+    log::info!("Command set_autostart called with enable: {}", enable);
     if enable {
-        app_handle.autolaunch().enable().map_err(|e| e.to_string())
+        app_handle.autolaunch().enable().map_err(|e| {
+            log::error!("Command set_autostart failed to enable: {}", e);
+            e.to_string()
+        })
     } else {
-        app_handle.autolaunch().disable().map_err(|e| e.to_string())
+        app_handle.autolaunch().disable().map_err(|e| {
+            log::error!("Command set_autostart failed to disable: {}", e);
+            e.to_string()
+        })
     }
 }
 
 #[tauri::command]
 async fn get_autostart_status(app_handle: tauri::AppHandle) -> Result<bool, String> {
-    app_handle.autolaunch().is_enabled().map_err(|e| e.to_string())
+    let status = app_handle.autolaunch().is_enabled().map_err(|e| {
+        log::error!("Command get_autostart_status failed: {}", e);
+        e.to_string()
+    })?;
+    log::info!("Command get_autostart_status returned: {}", status);
+    Ok(status)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -104,6 +118,17 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .targets([
+                    Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    Target::new(tauri_plugin_log::TargetKind::LogDir { file_name: None }),
+                    Target::new(tauri_plugin_log::TargetKind::Webview),
+                ])
+                .level(log::LevelFilter::Info) // Убеждаемся, что уровень Info включен
+                .with_colors(ColoredLevelConfig::default())
+                .build()
+        )
         .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status])
         .setup(|app| {
             let handle = app.handle();
@@ -174,6 +199,7 @@ pub fn run() {
             )?;
 
             let autostart_status = handle.autolaunch().is_enabled().unwrap_or(false);
+            log::info!("Initial autostart status: {}", autostart_status);
             let autostart_item = CheckMenuItem::with_id(handle, "autostart", get_translated_string("Launch at startup"), true, autostart_status, None::<&str>)?;
             *AUTOSTART_MENU_ITEM.lock().unwrap() = Some(autostart_item.clone());
             let quit = MenuItem::with_id(handle, "quit", get_translated_string("Close Application"), true, None::<&str>)?;
@@ -272,14 +298,30 @@ pub fn run() {
                         let _ = app_handle.emit("language-changed", id);
                     }
                     "autostart" => {
-                        let current_status = autostart_item_clone.is_checked().unwrap_or(false);
-                        let new_status = !current_status;
+                        log::info!("Autostart menu item clicked");
+                        
+                        // Опрашиваем систему напрямую, а не доверяем состоянию меню
+                        let is_enabled = app_handle.autolaunch().is_enabled().unwrap_or(false);
+                        log::info!("Actual autostart status in Windows: {}", is_enabled);
+                        
+                        let new_status = !is_enabled;
                         if new_status {
-                            let _ = app_handle.autolaunch().enable();
+                            log::info!("Attempting to enable autostart");
+                            match app_handle.autolaunch().enable() {
+                                Ok(_) => log::info!("Successfully enabled autostart"),
+                                Err(e) => log::error!("Failed to enable autostart: {}", e),
+                            }
                         } else {
-                            let _ = app_handle.autolaunch().disable();
+                            log::info!("Attempting to disable autostart");
+                            match app_handle.autolaunch().disable() {
+                                Ok(_) => log::info!("Successfully disabled autostart"),
+                                Err(e) => log::error!("Failed to disable autostart: {}", e),
+                            }
                         }
+                        
+                        // Синхронизируем галочку в меню с новым состоянием
                         autostart_item_clone.set_checked(new_status).unwrap();
+                        log::info!("Menu item checked status updated to: {}", new_status);
                     }
                     "quit" => {
                         app_handle.exit(0);
