@@ -4,8 +4,6 @@ use tauri::{
 };
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use log;
-use tauri_plugin_log::{Target, fern::colors::ColoredLevelConfig};
 
 struct MenuState(Menu<tauri::Wry>);
 
@@ -90,34 +88,22 @@ use tauri_plugin_autostart::ManagerExt;
 
 #[tauri::command]
 async fn set_autostart(app_handle: tauri::AppHandle, enable: bool) -> Result<(), String> {
-    log::info!("Command set_autostart called with enable: {}", enable);
     if enable {
-        app_handle.autolaunch().enable().map_err(|e| {
-            log::error!("Command set_autostart failed to enable: {}", e);
-            e.to_string()
-        })
+        app_handle.autolaunch().enable().map_err(|e| e.to_string())
     } else {
-        app_handle.autolaunch().disable().map_err(|e| {
-            log::error!("Command set_autostart failed to disable: {}", e);
-            e.to_string()
-        })
+        app_handle.autolaunch().disable().map_err(|e| e.to_string())
     }
 }
 
 #[tauri::command]
 async fn get_autostart_status(app_handle: tauri::AppHandle) -> Result<bool, String> {
-    let status = app_handle.autolaunch().is_enabled().map_err(|e| {
-        log::error!("Command get_autostart_status failed: {}", e);
-        e.to_string()
-    })?;
-    log::info!("Command get_autostart_status returned: {}", status);
+    let status = app_handle.autolaunch().is_enabled().map_err(|e| e.to_string())?;
     Ok(status)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[tauri::command]
 fn open_external_url(app_handle: tauri::AppHandle, url: String) -> Result<(), String> {
-    log::info!("Opening external URL: {}", url);
     use tauri_plugin_opener::OpenerExt;
     app_handle.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
@@ -127,17 +113,6 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
-        .plugin(
-            tauri_plugin_log::Builder::default()
-                .targets([
-                    Target::new(tauri_plugin_log::TargetKind::Stdout),
-                    Target::new(tauri_plugin_log::TargetKind::LogDir { file_name: None }),
-                    Target::new(tauri_plugin_log::TargetKind::Webview),
-                ])
-                .level(log::LevelFilter::Info) // Убеждаемся, что уровень Info включен
-                .with_colors(ColoredLevelConfig::default())
-                .build()
-        )
         .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url])
         .setup(|app| {
             let handle = app.handle();
@@ -208,18 +183,15 @@ pub fn run() {
             )?;
 
             let is_autostart_enabled = handle.autolaunch().is_enabled().unwrap_or(false);
-            log::info!("Initial autostart status: {}", is_autostart_enabled);
             let autostart_item = CheckMenuItem::with_id(handle, "autostart", get_translated_string("Launch at startup"), true, is_autostart_enabled, None::<&str>)?;
 
             // Если автозагрузка еще не включена, включаем её автоматически при первом запуске
             if !is_autostart_enabled {
-                log::info!("First run or autostart disabled. Enabling autostart automatically...");
                 match handle.autolaunch().enable() {
                     Ok(_) => {
-                        log::info!("Successfully enabled autostart on first run");
                         autostart_item.set_checked(true).unwrap();
                     },
-                    Err(e) => log::error!("Failed to enable autostart on first run: {}", e),
+                    Err(_) => {},
                 }
             } else {
                 autostart_item.set_checked(true).unwrap();
@@ -329,33 +301,20 @@ pub fn run() {
                         let _ = app_handle.emit("language-changed", id);
                     }
                     "autostart" => {
-                        log::info!("Autostart menu item clicked");
-                        
                         // Опрашиваем систему напрямую, а не доверяем состоянию меню
                         let is_enabled = app_handle.autolaunch().is_enabled().unwrap_or(false);
-                        log::info!("Actual autostart status in Windows: {}", is_enabled);
                         
                         let new_status = !is_enabled;
                         if new_status {
-                            log::info!("Attempting to enable autostart");
-                            match app_handle.autolaunch().enable() {
-                                Ok(_) => log::info!("Successfully enabled autostart"),
-                                Err(e) => log::error!("Failed to enable autostart: {}", e),
-                            }
+                            let _ = app_handle.autolaunch().enable();
                         } else {
-                            log::info!("Attempting to disable autostart");
-                            match app_handle.autolaunch().disable() {
-                                Ok(_) => log::info!("Successfully disabled autostart"),
-                                Err(e) => log::error!("Failed to disable autostart: {}", e),
-                            }
+                            let _ = app_handle.autolaunch().disable();
                         }
                         
                         // Синхронизируем галочку в меню с новым состоянием
                         autostart_item_clone.set_checked(new_status).unwrap();
-                        log::info!("Menu item checked status updated to: {}", new_status);
                     }
                     "about" => {
-                        log::info!("'About' menu item clicked");
                         let lang = if *CURRENT_LANGUAGE.lock().unwrap() == "ru" { "ru" } else { "en" };
                         
                         // В Tauri v2 при использовании Vite многостраничность работает через URL вида about.html
@@ -364,10 +323,8 @@ pub fn run() {
                         
                         use tauri::Manager;
                         if let Some(about_window) = app_handle.get_webview_window("about") {
-                            log::info!("'About' window already exists, focusing it");
                             let _ = about_window.set_focus();
                         } else {
-                            log::info!("Creating new 'About' window with URL: {}", about_url);
                             let _ = tauri::WebviewWindowBuilder::new(
                                 app_handle,
                                 "about",
