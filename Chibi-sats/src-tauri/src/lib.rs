@@ -20,6 +20,7 @@ lazy_static! {
     static ref THEME_LIGHT_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
     static ref THEME_DARK_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
     static ref AUTOSTART_MENU_ITEM: Mutex<Option<CheckMenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref ABOUT_MENU_ITEM: Mutex<Option<MenuItem<tauri::Wry>>> = Mutex::new(None);
     static ref QUIT_MENU_ITEM: Mutex<Option<MenuItem<tauri::Wry>>> = Mutex::new(None);
 }
 
@@ -54,6 +55,7 @@ fn get_translation_map() -> std::collections::HashMap<String, std::collections::
     ru_translations.insert("English".to_string(), "Английский".to_string());
     ru_translations.insert("Russian".to_string(), "Русский".to_string());
     ru_translations.insert("Launch at startup".to_string(), "Автозагрузка".to_string());
+    ru_translations.insert("About Author".to_string(), "Об авторе".to_string());
     ru_translations.insert("Close Widget".to_string(), "Закрыть виджет".to_string());
     ru_translations.insert("Timeframes".to_string(), "Таймфреймы".to_string());
     map.insert("ru".to_string(), ru_translations);
@@ -113,6 +115,13 @@ async fn get_autostart_status(app_handle: tauri::AppHandle) -> Result<bool, Stri
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[tauri::command]
+fn open_external_url(app_handle: tauri::AppHandle, url: String) -> Result<(), String> {
+    log::info!("Opening external URL: {}", url);
+    use tauri_plugin_opener::OpenerExt;
+    app_handle.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -129,7 +138,7 @@ pub fn run() {
                 .with_colors(ColoredLevelConfig::default())
                 .build()
         )
-        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status])
+        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url])
         .setup(|app| {
             let handle = app.handle();
 
@@ -216,6 +225,10 @@ pub fn run() {
                 autostart_item.set_checked(true).unwrap();
             }
             *AUTOSTART_MENU_ITEM.lock().unwrap() = Some(autostart_item.clone());
+
+            let about = MenuItem::with_id(handle, "about", get_translated_string("About Author"), true, None::<&str>)?;
+            *ABOUT_MENU_ITEM.lock().unwrap() = Some(about.clone());
+
             let quit = MenuItem::with_id(handle, "quit", get_translated_string("Close Widget"), true, None::<&str>)?;
             *QUIT_MENU_ITEM.lock().unwrap() = Some(quit.clone());
 
@@ -240,6 +253,7 @@ pub fn run() {
                     &lang_submenu, // Add the language submenu here
                     &tauri::menu::PredefinedMenuItem::separator(handle)?,
                     &autostart_item,
+                    &about,
                     &quit,
                 ],
             )?;
@@ -305,6 +319,9 @@ pub fn run() {
                         if let Some(item) = AUTOSTART_MENU_ITEM.lock().unwrap().as_ref() {
                             item.set_text(get_translated_string("Launch at startup")).unwrap();
                         }
+                        if let Some(item) = ABOUT_MENU_ITEM.lock().unwrap().as_ref() {
+                            item.set_text(get_translated_string("About Author")).unwrap();
+                        }
                         if let Some(item) = QUIT_MENU_ITEM.lock().unwrap().as_ref() {
                             item.set_text(get_translated_string("Close Widget")).unwrap();
                         }
@@ -336,6 +353,30 @@ pub fn run() {
                         // Синхронизируем галочку в меню с новым состоянием
                         autostart_item_clone.set_checked(new_status).unwrap();
                         log::info!("Menu item checked status updated to: {}", new_status);
+                    }
+                    "about" => {
+                        log::info!("'About' menu item clicked");
+                        let lang = if *CURRENT_LANGUAGE.lock().unwrap() == "ru" { "ru" } else { "en" };
+                        let about_url = format!("about.html?lang={}", lang);
+                        
+                        use tauri::Manager;
+                        if let Some(about_window) = app_handle.get_webview_window("about") {
+                            log::info!("'About' window already exists, focusing it");
+                            let _ = about_window.set_focus();
+                        } else {
+                            log::info!("Creating new 'About' window with URL: {}", about_url);
+                            let _ = tauri::WebviewWindowBuilder::new(
+                                app_handle,
+                                "about",
+                                tauri::WebviewUrl::App(about_url.into())
+                            )
+                            .title(get_translated_string("About Author"))
+                            .inner_size(400.0, 350.0)
+                            .resizable(false)
+                            .always_on_top(true)
+                            .decorations(true)
+                            .build();
+                        }
                     }
                     "quit" => {
                         app_handle.exit(0);

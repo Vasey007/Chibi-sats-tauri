@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>О разработчике</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 340px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: #000;
+        }
+        p {
+            font-size: 15px;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+        .contact-row {
+            display: block;
+            margin: 5px 0;
+            color: #1c1e21;
+        }
+        .contact-label {
+            font-weight: normal;
+        }
+        .contact-value {
+            font-weight: bold;
+            user-select: all; /* Выделяется только значение при клике */
+            cursor: pointer;
+        }
+        .contact-link {
+            color: #0066cc;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .contact-link:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #65676b;
+        }
+        .close-btn {
+            margin-top: 25px;
+            padding: 8px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .close-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="title">О разработчике</h1>
+        <p id="author">Автор: <strong>Василий Непытаев</strong></p>
+        <p id="year">Год создания: <strong>2026</strong></p>
+        <div id="contacts">
+            <p>Контакты:</p>
+            <div class="contact-row">
+                <span class="contact-label">Telegram:</span>
+                <a href="#" onclick="openExternal('https://t.me/Newpepol')" class="contact-link">@Newpepol</a>
+            </div>
+            <div class="contact-row">
+                <span class="contact-label">Email:</span>
+                <span class="contact-value">karta.hai@yandex.ru</span>
+            </div>
+        </div>
+        <button class="close-btn" onclick="window.close()" id="closeBtn">Закрыть</button>
+    </div>
+
+    <script>
+        function openExternal(url) {
+            if (window.__TAURI__) {
+                window.__TAURI__.core.invoke('open_external_url', { url: url });
+            } else {
+                window.open(url, '_blank');
+            }
+        }
+
+        // Простая локализация на основе языка системы или параметров
+        const urlParams = new URLSearchParams(window.location.search);
+        const lang = urlParams.get('lang') || 'ru';
+
+        if (lang === 'en') {
+            document.title = 'About Developer';
+            document.getElementById('title').innerText = 'About Developer';
+            document.getElementById('author').innerHTML = 'Author: <strong>Vasily Nepytaev</strong>';
+            document.getElementById('year').innerHTML = 'Year of creation: <strong>2026</strong>';
+            document.getElementById('contacts').innerHTML = `
+                <p>Contacts:</p>
+                <div class="contact-row">
+                    <span class="contact-label">Telegram:</span>
+                    <a href="#" onclick="openExternal('https://t.me/Newpepol')" class="contact-link">@Newpepol</a>
+                </div>
+                <div class="contact-row">
+                    <span class="contact-label">Email:</span>
+                    <span class="contact-value">karta.hai@yandex.ru</span>
+                </div>
+            `;
+            document.getElementById('closeBtn').innerText = 'Close';
+        }
+    </script>
+</body>
+</html>
