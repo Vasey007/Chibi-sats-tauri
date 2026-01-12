@@ -21,7 +21,7 @@ i18n
           "Dark": "Dark",
           "Anime": "Anime",
           "Billionaire": "Billionaire",
-          "Golden Dragon": "Golden Dragon",
+          "Dragon": "Golden Dragon",
           "English": "English",
           "Russian": "Russian",
           "Settings": "Settings",
@@ -45,7 +45,10 @@ i18n
           "min": "min",
           "Bender": "Bender",
           "Casino": "Blackjack and hookers",
-          "Lord": "The Lord"
+          "Lord": "The Lord",
+          "Price Alerts": "Price Alerts",
+          "Target Price": "Target Price",
+          "Theme": "Theme"
         }
       },
       ru: {
@@ -64,7 +67,7 @@ i18n
           "Dark": "Темная",
           "Anime": "Аниме",
           "Billionaire": "Миллиардер",
-          "Golden Dragon": "Золотой Дракон",
+          "Dragon": "Золотой Дракон",
           "English": "Английский",
           "Russian": "Русский",
           "Settings": "Настройки",
@@ -88,7 +91,10 @@ i18n
           "min": "мин",
           "Bender": "Бендер",
           "Casino": "Блэкджек и шлюхи",
-          "Lord": "Властелин"
+          "Lord": "Властелин",
+          "Price Alerts": "Уведомление о цене",
+          "Target Price": "Целевая цена",
+          "Theme": "Тема"
         }
       }
     },

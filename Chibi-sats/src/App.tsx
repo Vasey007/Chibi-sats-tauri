@@ -10,6 +10,15 @@ type Timeframe = "24h" | "1w" | "1m" | "1y";
 type Theme = "light" | "dark" | "anime" | "billionaire" | "dragon" | "bender" | "casino" | "lord";
 type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN";
 
+interface PriceAlert {
+  id: string;
+  symbol: string;
+  currency: string;
+  targetPrice: number;
+  direction: "above" | "below";
+  active: boolean;
+}
+
 const currencySymbols: Record<Currency, string> = {
   USD: "$",
   EUR: "€",
@@ -25,6 +34,37 @@ const calculatePercentageChange = (prices: number[]): number | null => {
   const lastPrice = prices[prices.length - 1];
   if (firstPrice === 0) return null; // Avoid division by zero
   return ((lastPrice - firstPrice) / firstPrice) * 100;
+};
+
+const playAlertSound = () => {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    // Приятный "Chibi" звук - два коротких бипа
+    oscillator.type = 'sine';
+    const now = audioCtx.currentTime;
+    
+    // Первый бип
+    oscillator.frequency.setValueAtTime(880, now); // A5
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(0.1, now + 0.05);
+    gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
+    
+    // Второй бип чуть выше
+    oscillator.frequency.setValueAtTime(1320, now + 0.25); // E6
+    gainNode.gain.linearRampToValueAtTime(0.1, now + 0.3);
+    gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+
+    oscillator.start(now);
+    oscillator.stop(now + 0.5);
+  } catch (e) {
+    console.error("Failed to play sound:", e);
+  }
 };
 
 function App() {
@@ -75,6 +115,16 @@ function App() {
   const [opacity, setOpacity] = useState(() => parseFloat(localStorage.getItem("windowOpacity") || "1.0"));
   const [refreshInterval, setRefreshInterval] = useState(() => parseInt(localStorage.getItem("refreshInterval") || "5000"));
   const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem("currentSymbol") || "BTC");
+  const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
+    const saved = localStorage.getItem("priceAlerts");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [newAlertPrice, setNewAlertPrice] = useState("");
+
+  useEffect(() => {
+    // Сохраняем алерты при их изменении
+    localStorage.setItem("priceAlerts", JSON.stringify(alerts));
+  }, [alerts]);
 
   useEffect(() => {
     // Получаем статус автозагрузки при запуске
@@ -151,6 +201,28 @@ function App() {
           console.log(`Setting new price: ${newPrice} ${currency}`);
           setPriceUsd(newPrice);
           setError(null);
+
+          // Проверка алертов
+          setAlerts(prev => {
+            let soundPlayed = false;
+            const updated = prev.map(alert => {
+              if (alert.active && alert.symbol === currentSymbol && alert.currency === currency) {
+                const triggered = alert.direction === "above" 
+                  ? newPrice >= alert.targetPrice 
+                  : newPrice <= alert.targetPrice;
+                
+                if (triggered) {
+                  if (!soundPlayed) {
+                    playAlertSound();
+                    soundPlayed = true;
+                  }
+                  return { ...alert, active: false };
+                }
+              }
+              return alert;
+            });
+            return updated;
+          });
         } else {
           throw new Error(t("Error loading price"));
         }
@@ -384,70 +456,99 @@ function App() {
       await invoke("open_about");
     };
 
-    return (
-      <div className={`app ${theme} settings-window`}>
-        <div className="titlebar">
-          <div className="title">{t("Settings")}</div>
-        </div>
-        <div className="content">
-          <div className="settings-grid">
-            <div className="settings-group">
-              <label className="settings-label">{t("Cryptocurrency")}</label>
-              <select 
-                value={currentSymbol} 
-                onChange={(e) => handleSymbolChange(e.target.value)}
-                className="theme-select"
-              >
-                <option value="BTC">Bitcoin (BTC)</option>
-                <option value="ETH">Ethereum (ETH)</option>
-                <option value="SOL">Solana (SOL)</option>
-              </select>
-            </div>
+    const handleAddAlert = () => {
+      const price = parseFloat(newAlertPrice);
+      if (isNaN(price) || price <= 0 || !priceUsd) return;
 
-            <div className="settings-group">
-              <label className="settings-label">{t("Currency")}</label>
-              <select 
-                className="currency-select"
-                value={currency}
-                onChange={(e) => handleCurrencyChange(e.target.value as Currency)}
-              >
+      const newAlert: PriceAlert = {
+        id: Date.now().toString(),
+        symbol: currentSymbol,
+        currency: currency,
+        targetPrice: price,
+        direction: price > priceUsd ? "above" : "below",
+        active: true
+      };
+
+      setAlerts([...alerts, newAlert]);
+      setNewAlertPrice("");
+    };
+
+    const removeAlert = (id: string) => {
+      setAlerts(alerts.filter(a => a.id !== id));
+    };
+
+    return (
+      <div className={`app ${theme} settings-window`} data-tauri-drag-region>
+        <div className="titlebar" data-tauri-drag-region>
+          <span className="title">{t("Settings")}</span>
+        </div>
+        <div className="settings-content">
+          <div className="settings-scroll-area">
+            <div className="settings-grid">
+              <div className="settings-group">
+                <label className="settings-label">{t("Cryptocurrency")}</label>
+                <select 
+                  value={currentSymbol} 
+                  onChange={(e) => handleSymbolChange(e.target.value)}
+                  className="currency-select"
+                >
+                  <option value="BTC">Bitcoin (BTC)</option>
+                  <option value="ETH">Ethereum (ETH)</option>
+                  <option value="SOL">Solana (SOL)</option>
+                </select>
+              </div>
+
+              <div className="settings-group">
+                <label className="settings-label">{t("Currency")}</label>
+                <select 
+                  value={currency} 
+                  onChange={(e) => handleCurrencyChange(e.target.value as Currency)}
+                  className="currency-select"
+                >
                   <option value="USD">USD ($)</option>
                   <option value="EUR">EUR (€)</option>
                   <option value="BRL">BRL (R$)</option>
-                  {currentSymbol !== "SOL" && <option value="TRY">TRY (₺)</option>}
-                  {currentSymbol !== "SOL" && <option value="PLN">PLN (zł)</option>}
+                  {currentSymbol !== "SOL" && (
+                    <>
+                      <option value="TRY">TRY (₺)</option>
+                      <option value="PLN">PLN (zł)</option>
+                    </>
+                  )}
                 </select>
-            </div>
+              </div>
 
-            <div className="settings-group">
-              <label className="settings-label">{t("Themes")}</label>
-              <select 
-                  className="currency-select" 
+              <div className="settings-group">
+                <label className="settings-label">{t("Theme")}</label>
+                <select 
                   value={theme} 
                   onChange={(e) => handleThemeChange(e.target.value as Theme)}
+                  className="theme-select"
                 >
                   <option value="light">{t("Light")}</option>
                   <option value="dark">{t("Dark")}</option>
                   <option value="anime">{t("Anime")}</option>
-                   <option value="billionaire">{t("Billionaire")}</option>
-                   <option value="dragon">{t("Golden Dragon")}</option>
-                   <option value="bender">{t("Bender")}</option>
-                   <option value="casino">{t("Casino")}</option>
-                   <option value="lord">{t("Lord")}</option>
-                 </select>
+                  <option value="billionaire">{t("Billionaire")}</option>
+                  <option value="dragon">{t("Dragon")}</option>
+                  <option value="bender">{t("Bender")}</option>
+                  <option value="casino">{t("Casino")}</option>
+                  <option value="lord">{t("Lord")}</option>
+                </select>
+              </div>
+
+              <div className="settings-group">
+                <label className="settings-label">{t("Language")}</label>
+                <select 
+                  className="currency-select"
+                  value={i18n.language.startsWith('ru') ? 'ru' : 'en'}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                >
+                  <option value="en">{t("English")}</option>
+                  <option value="ru">{t("Russian")}</option>
+                </select>
+              </div>
             </div>
 
-            <div className="settings-group">
-              <label className="settings-label">{t("Language")}</label>
-              <select 
-                className="currency-select"
-                value={i18n.language.startsWith('ru') ? 'ru' : 'en'}
-                onChange={(e) => handleLanguageChange(e.target.value)}
-              >
-                <option value="en">{t("English")}</option>
-                <option value="ru">{t("Russian")}</option>
-              </select>
-            </div>
+            <div className="settings-separator"></div>
 
             <div className="settings-group">
               <label className="settings-label">{t("Refresh Interval")}</label>
@@ -464,15 +565,56 @@ function App() {
               </select>
             </div>
 
-            <div className="checkbox-group">
-              <label className="settings-label">
+            <div className="settings-separator"></div>
+
+            <div className="settings-group">
+              <label className="settings-label">{t("Price Alerts")}</label>
+              <div className="alert-input-group">
                 <input 
-                  type="checkbox" 
-                  checked={alwaysOnTop} 
-                  onChange={(e) => handleAlwaysOnTopChange(e.target.checked)}
+                  type="number" 
+                  value={newAlertPrice} 
+                  onChange={(e) => setNewAlertPrice(e.target.value)}
+                  placeholder={t("Target Price")}
+                  className="alert-input"
                 />
-                {t("Always on Top")}
-              </label>
+                <button onClick={handleAddAlert} className="alert-add-button">+</button>
+              </div>
+              <div className="alerts-list">
+                {alerts.filter(a => a.symbol === currentSymbol && a.currency === currency).map(alert => (
+                  <div key={alert.id} className={`alert-item ${!alert.active ? 'inactive' : ''}`}>
+                    <span>
+                      {alert.direction === "above" ? "↑" : "↓"} {alert.targetPrice} {currencySymbols[alert.currency as Currency]}
+                    </span>
+                    <button onClick={() => removeAlert(alert.id)} className="alert-remove-button">×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="settings-separator"></div>
+
+            <div className="settings-row">
+              <div className="checkbox-group">
+                <label className="settings-label">
+                  <input 
+                    type="checkbox" 
+                    checked={alwaysOnTop} 
+                    onChange={(e) => handleAlwaysOnTopChange(e.target.checked)}
+                  />
+                  {t("Always on Top")}
+                </label>
+              </div>
+
+              <div className="checkbox-group">
+                <label className="settings-label">
+                  <input 
+                    type="checkbox" 
+                    checked={autostart} 
+                    onChange={(e) => handleAutostartToggle(e.target.checked)}
+                  />
+                  {t("Launch at startup")}
+                </label>
+              </div>
             </div>
 
             <div className="settings-group">
@@ -486,17 +628,6 @@ function App() {
                 onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
                 className="opacity-slider"
               />
-            </div>
-
-            <div className="checkbox-group">
-              <label className="settings-label">
-                <input 
-                  type="checkbox" 
-                  checked={autostart} 
-                  onChange={(e) => handleAutostartChange(e.target.checked)}
-                />
-                {t("Launch at startup")}
-              </label>
             </div>
           </div>
 
