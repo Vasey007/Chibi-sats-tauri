@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import "./App.css";
 import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
@@ -9,7 +9,7 @@ import AdBanner from "./components/AdBanner";
 const REFRESH_INTERVAL_MS = 5000;
 
 type Timeframe = "24h" | "1w" | "1m" | "1y";
-type Theme = "light" | "dark";
+type Theme = "light" | "dark" | "anime" | "billionaire" | "dragon";
 type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN";
 
 const currencySymbols: Record<Currency, string> = {
@@ -210,7 +210,13 @@ function App() {
     // Слушаем изменение темы из нативного меню
     let unlistenPromise: Promise<() => void>;
     unlistenPromise = listen<string>("theme-changed", (event) => {
-      const newTheme = event.payload === "theme_light" ? "light" : "dark";
+      let newTheme: Theme;
+      if (event.payload === "theme_light") newTheme = "light";
+      else if (event.payload === "theme_anime") newTheme = "anime";
+      else if (event.payload === "theme_billionaire") newTheme = "billionaire";
+      else if (event.payload === "theme_dragon") newTheme = "dragon";
+      else newTheme = "dark";
+      
       setTheme(newTheme);
       localStorage.setItem("theme", newTheme);
     });
@@ -290,9 +296,14 @@ function App() {
     const handleThemeChange = (newTheme: Theme) => {
       setTheme(newTheme);
       localStorage.setItem("theme", newTheme);
-      // Уведомляем основное окно, если нужно (хотя localStorage + state обычно достаточно для одного инстанса)
-      // Но у нас разные окна, так что лучше через emit
-      emit("theme-changed", newTheme === "light" ? "theme_light" : "theme_dark");
+      
+      let payload = "theme_dark";
+      if (newTheme === "light") payload = "theme_light";
+      else if (newTheme === "anime") payload = "theme_anime";
+      else if (newTheme === "billionaire") payload = "theme_billionaire";
+      else if (newTheme === "dragon") payload = "theme_dragon";
+      
+      emit("theme-changed", payload);
     };
 
     const handleLanguageChange = (lang: string) => {
@@ -338,13 +349,16 @@ function App() {
             <div className="settings-group">
               <label className="settings-label">{t("Themes")}</label>
               <select 
-                className="currency-select"
-                value={theme}
-                onChange={(e) => handleThemeChange(e.target.value as Theme)}
-              >
-                <option value="light">{t("Light")}</option>
-                <option value="dark">{t("Dark")}</option>
-              </select>
+                  className="currency-select" 
+                  value={theme} 
+                  onChange={(e) => handleThemeChange(e.target.value as Theme)}
+                >
+                  <option value="light">{t("Light")}</option>
+                  <option value="dark">{t("Dark")}</option>
+                  <option value="anime">{t("Anime")}</option>
+                   <option value="billionaire">{t("Billionaire")}</option>
+                   <option value="dragon">{t("Golden Dragon")}</option>
+                 </select>
             </div>
 
             <div className="settings-group">
@@ -381,6 +395,19 @@ function App() {
     );
   }
 
+  const chartColor = useMemo(() => {
+    if (theme === 'anime') {
+      return currentChange && currentChange >= 0 ? "#ff85b3" : "#a18cd1";
+    }
+    if (theme === 'billionaire') {
+      return currentChange && currentChange >= 0 ? "#ffd700" : "#b8860b";
+    }
+    if (theme === 'dragon') {
+      return currentChange && currentChange >= 0 ? "#ffd700" : "#ff8f00";
+    }
+    return currentChange && currentChange >= 0 ? "#22c55e" : "#ef4444";
+  }, [theme, currentChange]);
+
   return (
     <div 
       className={`app ${theme}`} 
@@ -393,7 +420,7 @@ function App() {
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none', opacity: 0.6 }}
         data-tauri-drag-region
       >
-        <PriceChart data={chartData} color={currentChange && currentChange >= 0 ? "#22c55e" : "#ef4444"} />
+        <PriceChart data={chartData} color={chartColor} />
       </div>
       <div className="titlebar" style={{ position: 'relative', zIndex: 1 }} data-tauri-drag-region>
         <button className="settings-button" onClick={openSettings} title={t("Settings")}>

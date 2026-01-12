@@ -26,6 +26,65 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+.ad-banner.anime {
+  background: linear-gradient(to bottom, #fff0f6, #ffebf2);
+  color: #5d3554;
+  border-bottom: 2px solid #ffc9db;
+  box-shadow: 0 2px 8px rgba(255, 133, 179, 0.2);
+}
+
+.ad-banner.anime .ad-link {
+  color: #ff5c9d;
+  font-weight: 800;
+  text-shadow: 0 0 10px rgba(255, 133, 179, 0.2);
+}
+
+.ad-banner.anime .close-button:hover {
+  color: #ff5c9d;
+  transform: scale(1.1);
+}
+
+.ad-banner.billionaire {
+  background: linear-gradient(to right, #0c0e14, #1a1d26);
+  color: #d4af37;
+  border-bottom: 2px solid #d4af37;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+}
+
+.ad-banner.billionaire .ad-link {
+  color: #ffd700;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+}
+
+.ad-banner.billionaire .close-button {
+  color: #b8860b;
+}
+
+.ad-banner.billionaire .close-button:hover {
+  color: #ffd700;
+  transform: scale(1.2);
+}
+
+.ad-banner.dragon {
+  background: linear-gradient(to right, #8b0000, #4a0000);
+  color: #ffd700;
+  border-bottom: 2px solid #ffd700;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.ad-banner.dragon .ad-link {
+  color: #ffca28;
+  font-weight: 900;
+  text-shadow: 1px 1px 2px #000;
+}
+
+.ad-banner.dragon .close-button:hover {
+  color: #ffca28;
+}
+
 .ad-link {
   color: inherit; /* Inherit color from parent */
   text-decoration: none;

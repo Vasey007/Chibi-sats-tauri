@@ -40,6 +40,290 @@ body,
   --hover-bg: #334155;
 }
 
+/* Anime Theme */
+.app.anime {
+  --bg-color: #fff0f6;
+  --border-color: #ffdeeb;
+  --text-color: #5d3554;
+  --title-color: #9d6b91;
+  --error-color: #ff6b6b;
+  --change-bg-color: rgba(255, 235, 242, 0.85);
+  --input-bg: #ffffff;
+  --input-border: #ffc9db;
+  --hover-bg: #fff5f8;
+  --accent-color: #ff85b3;
+  border-radius: 16px;
+}
+
+.app.anime .price {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8), 0 0 8px rgba(255, 255, 255, 0.4);
+}
+
+.app.anime .price-value {
+  color: #ff5c9d;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.app.anime .change {
+  box-shadow: 0 2px 4px rgba(255, 133, 179, 0.15);
+  border: 1px solid rgba(255, 133, 179, 0.2);
+}
+
+.app.anime .change.up {
+  color: #ff5c9d;
+}
+
+.app.anime .change.down {
+  color: #8b5cf6;
+}
+
+.app.anime .settings-button:hover {
+  background-color: #ffebf2;
+  color: #ff85b3;
+}
+
+.app.anime .timeframe-wheel-container {
+  border-radius: 12px;
+  background: rgba(255, 235, 242, 0.9);
+  border-color: #ffc9db;
+}
+
+.app.anime .timeframe-wheel-container.up .timeframe-item.active {
+  color: #ff5c9d;
+  text-shadow: 0 0 10px rgba(255, 92, 157, 0.4);
+}
+
+.app.anime .timeframe-wheel-container.down .timeframe-item.active {
+  color: #8b5cf6;
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+}
+
+.app.anime .about-button {
+  background: linear-gradient(135deg, #ff85b3 0%, #ff5c9d 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(255, 133, 179, 0.3);
+}
+
+.app.anime .about-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 133, 179, 0.4);
+}
+
+/* Billionaire Theme */
+.app.billionaire {
+  --bg-color: #0c0e14;
+  --border-color: #d4af37;
+  --text-color: #ffffff;
+  --title-color: #b8860b;
+  --error-color: #ff4d4d;
+  --change-bg-color: rgba(212, 175, 55, 0.15);
+  --input-bg: #1a1d26;
+  --input-border: #3d341a;
+  --hover-bg: #1e222d;
+  --accent-color: #ffd700;
+  border-width: 2px;
+}
+
+.app.billionaire .price {
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.9), 0 0 20px rgba(212, 175, 55, 0.4);
+  filter: drop-shadow(0 0 2px rgba(212, 175, 55, 0.2));
+}
+
+.app.billionaire .price-value {
+  font-size: 22px;
+  font-weight: 900;
+  background: linear-gradient(
+    180deg, 
+    #fffce6 0%, 
+    #ffd700 25%, 
+    #d4af37 50%, 
+    #b8860b 75%, 
+    #8a6d3b 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
+  padding: 2px 0;
+  display: inline-block;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,1)) drop-shadow(0 0 5px rgba(212, 175, 55, 0.5));
+}
+
+.app.billionaire .price > div {
+  color: #d4af37;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: -2px;
+}
+
+.app.billionaire .change {
+  border: 1px solid #d4af37;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+}
+
+.app.billionaire .change.up {
+  color: #ffd700;
+}
+
+.app.billionaire .change.down {
+  color: #e5e4e2;
+}
+
+.app.billionaire .settings-button {
+  color: #d4af37;
+}
+
+.app.billionaire .settings-button:hover {
+  background-color: rgba(212, 175, 55, 0.2);
+  color: #ffd700;
+}
+
+.app.billionaire .timeframe-wheel-container {
+  background: rgba(26, 29, 38, 0.9);
+  border: 1px solid #d4af37;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(212, 175, 55, 0.1);
+}
+
+.app.billionaire .timeframe-item.active {
+  color: #ffd700;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+}
+
+.app.billionaire .timeframe-item:not(:last-child)::after {
+  background-image: linear-gradient(to bottom, transparent, #d4af37, transparent);
+  opacity: 0.4;
+}
+
+.app.billionaire .about-button {
+  background: linear-gradient(135deg, #b8860b 0%, #ffd700 50%, #d4af37 100%);
+  color: #000;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+  border: none;
+}
+
+.app.billionaire .about-button:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
+  filter: brightness(1.1);
+}
+
+.app.billionaire .currency-select {
+  border-color: #3d341a;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+.app.billionaire .currency-select:focus {
+  border-color: #ffd700;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+}
+
+/* Golden Dragon Theme */
+.app.dragon {
+  --bg-color: #8b0000; /* Deep Red */
+  --border-color: #ffd700; /* Gold */
+  --text-color: #fff8e1; /* Off-white */
+  --title-color: #ffca28;
+  --error-color: #ff5252;
+  --change-bg-color: rgba(0, 0, 0, 0.3);
+  --input-bg: #5d0000;
+  --input-border: #ffd700;
+  --hover-bg: #a30000;
+  --accent-color: #ffd700;
+  border-width: 2px;
+  background-image: linear-gradient(135deg, #8b0000 0%, #4a0000 100%);
+}
+
+.app.dragon .price {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.app.dragon .price-value {
+  color: #ffd700;
+  font-size: 20px;
+  font-weight: 900;
+  text-shadow: 2px 2px 0px #000, 0 0 8px rgba(255, 215, 0, 0.6);
+  letter-spacing: 0.02em;
+}
+
+.app.dragon .price > div {
+  color: #ffca28;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.app.dragon .change {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #ffd700;
+  color: #ffd700;
+}
+
+.app.dragon .change.up {
+  color: #ffd700;
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+.app.dragon .change.down {
+  color: #ff8f00;
+}
+
+.app.dragon .settings-button {
+  color: #ffd700;
+}
+
+.app.dragon .settings-button:hover {
+  background-color: rgba(255, 215, 0, 0.2);
+}
+
+.app.dragon .timeframe-wheel-container {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #ffd700;
+  border-radius: 4px; /* More angular for Chinese style */
+}
+
+.app.dragon .timeframe-item.active {
+  color: #ffd700;
+  font-weight: 900;
+}
+
+.app.dragon .timeframe-item:not(:last-child)::after {
+  background-image: linear-gradient(to bottom, transparent, #ffd700, transparent);
+  opacity: 0.6;
+}
+
+.app.dragon .about-button {
+  background-color: #ffd700;
+  color: #8b0000;
+  font-weight: 900;
+  border-radius: 4px;
+  text-transform: uppercase;
+  border: 2px solid #5d0000;
+}
+
+.app.dragon .about-button:hover {
+  background-color: #ffca28;
+  transform: scale(1.02);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+}
+
+.app.dragon .currency-select {
+  border-color: #ffd700;
+  background-color: #5d0000;
+  color: #ffd700;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffd700' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+.app.dragon .checkbox-group .settings-label {
+  color: #ffd700;
+}
+
+.app.dragon .checkbox-group input[type="checkbox"] {
+  accent-color: #ffd700;
+}
+
 .app {
   width: 100%;
   height: 100%;
