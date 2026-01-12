@@ -637,9 +637,66 @@ body,
   color: var(--text-color);
 }
 
+.close-app-button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--title-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+  z-index: 10;
+}
+
+.close-app-button:hover {
+  background-color: #ef4444;
+  color: white;
+}
+
 .settings-window {
   background: var(--bg-color);
   cursor: default;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.settings-header {
+  height: 40px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--change-bg-color);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-weight: 600;
+  user-select: none;
+}
+
+.settings-header .close-button {
+  background: transparent;
+  border: none;
+  color: var(--title-color);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.settings-header .close-button:hover {
+  background-color: #ef4444;
+  color: white;
 }
 
 .settings-window .content {

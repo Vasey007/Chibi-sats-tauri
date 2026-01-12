@@ -1,6 +1,7 @@
 use tauri::{
-    menu::{ContextMenu, Menu, MenuItem},
-    Manager, PhysicalPosition, Listener,
+    menu::{ContextMenu, Menu, MenuItem, Submenu, PredefinedMenuItem},
+    Manager, PhysicalPosition, Listener, Emitter,
+    tray::{TrayIconBuilder, TrayIconEvent, TrayIcon, MouseButton, MouseButtonState},
 };
 use lazy_static::lazy_static;
 use std::sync::Mutex;
@@ -10,6 +11,7 @@ struct MenuState(Menu<tauri::Wry>);
 lazy_static! {
     static ref CURRENT_LANGUAGE: Mutex<String> = Mutex::new("en".to_string());
     static ref QUIT_MENU_ITEM: Mutex<Option<MenuItem<tauri::Wry>>> = Mutex::new(None);
+    static ref TRAY_ICON: Mutex<Option<TrayIcon>> = Mutex::new(None);
 }
 
 lazy_static! {
@@ -19,11 +21,33 @@ lazy_static! {
         let mut en_translations = std::collections::HashMap::new();
         en_translations.insert("About Developer".to_string(), "About Developer".to_string());
         en_translations.insert("Close Widget".to_string(), "Close Widget".to_string());
+        en_translations.insert("Settings".to_string(), "Settings".to_string());
+        en_translations.insert("Exit".to_string(), "Exit".to_string());
+        en_translations.insert("Themes".to_string(), "Themes".to_string());
+        en_translations.insert("Light".to_string(), "Light".to_string());
+        en_translations.insert("Dark".to_string(), "Dark".to_string());
+        en_translations.insert("Anime".to_string(), "Anime".to_string());
+        en_translations.insert("Billionaire".to_string(), "Billionaire".to_string());
+        en_translations.insert("Golden Dragon".to_string(), "Golden Dragon".to_string());
+        en_translations.insert("Bender".to_string(), "Bender".to_string());
+        en_translations.insert("Casino".to_string(), "Blackjack and hookers".to_string());
+        en_translations.insert("Lord".to_string(), "The Lord".to_string());
         map.insert("en".to_string(), en_translations);
 
         let mut ru_translations = std::collections::HashMap::new();
         ru_translations.insert("About Developer".to_string(), "О разработчике".to_string());
         ru_translations.insert("Close Widget".to_string(), "Закрыть виджет".to_string());
+        ru_translations.insert("Settings".to_string(), "Настройки".to_string());
+        ru_translations.insert("Exit".to_string(), "Выход".to_string());
+        ru_translations.insert("Themes".to_string(), "Темы".to_string());
+        ru_translations.insert("Light".to_string(), "Светлая".to_string());
+        ru_translations.insert("Dark".to_string(), "Темная".to_string());
+        ru_translations.insert("Anime".to_string(), "Аниме".to_string());
+        ru_translations.insert("Billionaire".to_string(), "Миллиардер".to_string());
+        ru_translations.insert("Golden Dragon".to_string(), "Золотой Дракон".to_string());
+        ru_translations.insert("Bender".to_string(), "Бендер".to_string());
+        ru_translations.insert("Casino".to_string(), "Блэкджек и шлюхи".to_string());
+        ru_translations.insert("Lord".to_string(), "Властелин".to_string());
         map.insert("ru".to_string(), ru_translations);
 
         map
@@ -55,7 +79,7 @@ async fn show_context_menu(
 use tauri_plugin_autostart::ManagerExt;
 
 #[tauri::command]
-async fn set_autostart(app_handle: tauri::AppHandle, enable: bool) -> Result<(), String> {
+fn set_autostart(app_handle: tauri::AppHandle, enable: bool) -> Result<(), String> {
     if enable {
         app_handle.autolaunch().enable().map_err(|e| e.to_string())
     } else {
@@ -64,45 +88,74 @@ async fn set_autostart(app_handle: tauri::AppHandle, enable: bool) -> Result<(),
 }
 
 #[tauri::command]
-async fn get_autostart_status(app_handle: tauri::AppHandle) -> Result<bool, String> {
+fn get_autostart_status(app_handle: tauri::AppHandle) -> Result<bool, String> {
     let status = app_handle.autolaunch().is_enabled().map_err(|e| e.to_string())?;
     Ok(status)
 }
 
 #[tauri::command]
-async fn open_settings(app_handle: tauri::AppHandle) -> Result<(), String> {
-    // Check if window already exists
-    if let Some(window) = app_handle.get_webview_window("settings") {
-        window.set_focus().map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    let settings_window = tauri::WebviewWindowBuilder::new(
-        &app_handle,
-        "settings",
-        tauri::WebviewUrl::App("index.html?window=settings".into()),
-    )
-    .title("Settings")
-    .inner_size(400.0, 500.0)
-    .resizable(true)
-    .decorations(true)
-    .always_on_top(false)
-    .center()
-    .skip_taskbar(false)
-    .build();
-
-    match settings_window {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e.to_string()),
-    }
+fn close_window(window: tauri::Window) -> Result<(), String> {
+    window.close().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn open_about(app_handle: tauri::AppHandle) -> Result<(), String> {
+fn show_window(window: tauri::Window) -> Result<(), String> {
+    window.show().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn open_settings(app_handle: tauri::AppHandle) -> Result<(), String> {
+    // Run on main thread to avoid any UI hangs or deadlocks
+    let handle_clone = app_handle.clone();
+    let _ = app_handle.run_on_main_thread(move || {
+        // If window exists, just show it
+        if let Some(window) = handle_clone.get_webview_window("settings") {
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        } else {
+            let settings_window = tauri::WebviewWindowBuilder::new(
+                &handle_clone,
+                "settings",
+                tauri::WebviewUrl::App("index.html?window=settings".into()),
+            )
+            .title(get_translated_string("Settings"))
+            .inner_size(400.0, 500.0)
+            .resizable(false)
+            .decorations(false)
+            .always_on_top(true)
+            .center()
+            .skip_taskbar(false)
+            .visible(false) // Still hidden, show only when React is ready
+            .build();
+            
+            match settings_window {
+                Ok(_) => {},
+                Err(e) => println!("Error building settings window: {}", e),
+            }
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn open_settings_alt(app_handle: tauri::AppHandle) -> Result<(), String> {
+    open_settings(app_handle)
+}
+
+#[tauri::command]
+fn exit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
+}
+
+#[tauri::command]
+fn open_about(app_handle: tauri::AppHandle) -> Result<(), String> {
     let lang = if *CURRENT_LANGUAGE.lock().unwrap() == "ru" { "ru" } else { "en" };
     let about_url = format!("about.html?lang={}", lang);
     
     if let Some(about_window) = app_handle.get_webview_window("about") {
+        let _ = about_window.show();
+        let _ = about_window.unminimize();
         let _ = about_window.set_focus();
     } else {
         let _ = tauri::WebviewWindowBuilder::new(
@@ -144,7 +197,7 @@ pub fn run() {
 
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
-        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings, open_about, set_always_on_top])
+        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings, open_settings_alt, open_about, set_always_on_top, exit_app, close_window, show_window])
         .setup(|app| {
             let handle = app.handle();
 
@@ -174,6 +227,76 @@ pub fn run() {
                     &quit,
                 ],
             )?;
+
+            // Tray Menu
+            let tray_settings = MenuItem::with_id(handle, "tray_settings", get_translated_string("Settings"), true, None::<&str>)?;
+            let tray_exit = MenuItem::with_id(handle, "tray_exit", get_translated_string("Exit"), true, None::<&str>)?;
+            
+            // Listen for request to open settings from the gear icon (frontend event)
+            let handle_clone = handle.clone();
+            handle.listen("request-open-settings", move |_| {
+                let _ = open_settings(handle_clone.clone());
+            });
+
+            let theme_light = MenuItem::with_id(handle, "theme_light", get_translated_string("Light"), true, None::<&str>)?;
+            let theme_dark = MenuItem::with_id(handle, "theme_dark", get_translated_string("Dark"), true, None::<&str>)?;
+            let theme_anime = MenuItem::with_id(handle, "theme_anime", get_translated_string("Anime"), true, None::<&str>)?;
+            let theme_billionaire = MenuItem::with_id(handle, "theme_billionaire", get_translated_string("Billionaire"), true, None::<&str>)?;
+            let theme_dragon = MenuItem::with_id(handle, "theme_dragon", get_translated_string("Golden Dragon"), true, None::<&str>)?;
+            let theme_bender = MenuItem::with_id(handle, "theme_bender", get_translated_string("Bender"), true, None::<&str>)?;
+            let theme_casino = MenuItem::with_id(handle, "theme_casino", get_translated_string("Casino"), true, None::<&str>)?;
+            let theme_lord = MenuItem::with_id(handle, "theme_lord", get_translated_string("Lord"), true, None::<&str>)?;
+
+            let themes_submenu = Submenu::with_items(
+                handle,
+                get_translated_string("Themes"),
+                true,
+                &[
+                    &theme_light, &theme_dark, &theme_anime, &theme_billionaire,
+                    &theme_dragon, &theme_bender, &theme_casino, &theme_lord
+                ]
+            )?;
+
+            let tray_menu = Menu::with_items(
+                handle,
+                &[
+                    &tray_settings,
+                    &themes_submenu,
+                    &PredefinedMenuItem::separator(handle)?,
+                    &tray_exit,
+                ]
+            )?;
+
+            let tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&tray_menu)
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray: &TrayIcon, event: TrayIconEvent| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .on_menu_event(move |app_handle: &tauri::AppHandle, event| {
+                    match event.id.as_ref() {
+                        "tray_settings" => {
+                            let _ = open_settings(app_handle.clone());
+                        }
+                        "tray_exit" => {
+                            app_handle.exit(0);
+                        }
+                        id if id.starts_with("theme_") => {
+                            let _ = app_handle.emit("theme-changed", id);
+                        }
+                        _ => {}
+                    }
+                })
+                .build(app)?;
+
+            *TRAY_ICON.lock().unwrap() = Some(tray);
 
             // Listen for language changes from the frontend to update Rust state and menu
             handle.listen("language-changed", move |event: tauri::Event| {

@@ -3,6 +3,7 @@ import "./App.css";
 import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTranslation } from "react-i18next";
 import AdBanner from "./components/AdBanner";
 
@@ -37,9 +38,13 @@ const calculatePercentageChange = (prices: number[]): number | null => {
   return ((lastPrice - firstPrice) / firstPrice) * 100;
 };
 
-const playAlertSound = () => {
+const playAlertSound = async () => {
+  console.log("Attempting to play alert sound...");
   try {
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
 
@@ -63,278 +68,152 @@ const playAlertSound = () => {
 
     oscillator.start(now);
     oscillator.stop(now + 0.5);
+    console.log("Alert sound played successfully");
   } catch (e) {
     console.error("Failed to play sound:", e);
   }
 };
 
-function App() {
+function SettingsWindow() {
   const { t, i18n } = useTranslation();
-  const [priceUsd, setPriceUsd] = useState<number | null>(null);
-  const isSettings = window.location.search.includes("window=settings");
-
-  const openSettings = async () => {
-    console.log("Opening settings...");
-    try {
-      await invoke("open_settings");
-      console.log("Settings command invoked successfully");
-    } catch (error) {
-      console.error("Failed to open settings:", error);
-    }
-  };
-
-  const [change24h, setChange24h] = useState<number | null>(null);
-  const [change1w, setChange1w] = useState<number | null>(null);
-  const [change1m, setChange1m] = useState<number | null>(null);
-  const [change1y, setChange1y] = useState<number | null>(null);
-  const [chartData, setChartData] = useState<number[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [timeframe, setTimeframe] = useState<Timeframe>(() => (localStorage.getItem("timeframe") as Timeframe) || "24h");
-  const timeframes: Timeframe[] = ["24h", "1w", "1m", "1y"];
-
-  const handleTimeframeClick = () => {
-    const currentIndex = timeframes.indexOf(timeframe);
-    const nextIndex = (currentIndex + 1) % timeframes.length;
-    const nextTimeframe = timeframes[nextIndex];
-    setTimeframe(nextTimeframe);
-    localStorage.setItem("timeframe", nextTimeframe);
-  };
-
-  const getTimeframeWheel = () => {
-    const currentIndex = timeframes.indexOf(timeframe);
-    const prevIndex = (currentIndex - 1 + timeframes.length) % timeframes.length;
-    const nextIndex = (currentIndex + 1) % timeframes.length;
-
-    return [timeframes[prevIndex], timeframes[currentIndex], timeframes[nextIndex]];
-  };
-
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("theme") as Theme) || "light");
-  const [currency, setCurrency] = useState<Currency>(() => (localStorage.getItem("currency") as Currency) || "USD");
-  const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
+  
+  // Safe state initialization
+  const [theme, setTheme] = useState<Theme>("dark");
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [autostart, setAutostart] = useState(false);
-  const [alwaysOnTop, setAlwaysOnTop] = useState(() => localStorage.getItem("alwaysOnTop") === "true");
-  const [opacity, setOpacity] = useState(() => parseFloat(localStorage.getItem("windowOpacity") || "1.0"));
-  const [refreshInterval, setRefreshInterval] = useState(() => parseInt(localStorage.getItem("refreshInterval") || "5000"));
-  const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem("currentSymbol") || "BTC");
-  const [manualFuntikPrice, setManualFuntikPrice] = useState(() => parseFloat(localStorage.getItem("manualFuntikPrice") || "100"));
-  const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
-    const saved = localStorage.getItem("priceAlerts");
-    return saved ? JSON.parse(saved) : [];
+  const [alwaysOnTop, setAlwaysOnTop] = useState(false);
+  const [opacity, setOpacity] = useState(1.0);
+  const [refreshInterval, setRefreshInterval] = useState(5000);
+  const [currentSymbol, setCurrentSymbol] = useState("BTC");
+  const [manualPrices, setManualPrices] = useState<Record<string, number>>({
+    BTC: 50000,
+    ETH: 3000,
+    SOL: 100,
+    FUNTIK: 100
   });
+  const [useManualPrice, setUseManualPrice] = useState<Record<string, boolean>>({
+    BTC: false,
+    ETH: false,
+    SOL: false,
+    FUNTIK: true
+  });
+  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [newAlertPrice, setNewAlertPrice] = useState("");
+  const [priceUsd, setPriceUsd] = useState<number | null>(null);
 
   useEffect(() => {
-    // Сохраняем алерты при их изменении
+    const unlisten = listen<string>("language-changed", (e) => {
+      i18n.changeLanguage(e.payload === "lang_en" ? "en" : "ru");
+    });
+    return () => { unlisten.then(u => u()); };
+  }, [i18n]);
+
+  // Initialize state from localStorage after mount to avoid issues with SSR or early access
+  useEffect(() => {
+    try {
+      // Initialize language
+      const savedLang = localStorage.getItem("language");
+      if (savedLang) {
+        i18n.changeLanguage(savedLang === "lang_en" ? "en" : "ru");
+      }
+
+      const savedTheme = localStorage.getItem("theme") as Theme;
+      if (savedTheme) setTheme(savedTheme);
+
+      const savedCurrency = localStorage.getItem("currency") as Currency;
+      if (savedCurrency) setCurrency(savedCurrency);
+
+      const savedAlwaysOnTop = localStorage.getItem("alwaysOnTop") === "true";
+      setAlwaysOnTop(savedAlwaysOnTop);
+
+      const savedOpacity = parseFloat(localStorage.getItem("windowOpacity") || "1.0");
+      setOpacity(isNaN(savedOpacity) ? 1.0 : savedOpacity);
+
+      const savedInterval = parseInt(localStorage.getItem("refreshInterval") || "5000");
+      setRefreshInterval(isNaN(savedInterval) ? 5000 : savedInterval);
+
+      const savedSymbol = localStorage.getItem("currentSymbol") || "BTC";
+      setCurrentSymbol(savedSymbol);
+
+      const savedManualPrices = localStorage.getItem("manualPrices");
+      if (savedManualPrices) {
+        try {
+          setManualPrices(JSON.parse(savedManualPrices));
+        } catch (e) { console.error("Failed to parse manualPrices:", e); }
+      }
+
+      const savedUseManualPrice = localStorage.getItem("useManualPrice");
+      if (savedUseManualPrice) {
+        try {
+          setUseManualPrice(JSON.parse(savedUseManualPrice));
+        } catch (e) { console.error("Failed to parse useManualPrice:", e); }
+      }
+
+      const savedAlerts = localStorage.getItem("priceAlerts");
+      if (savedAlerts) {
+        try {
+          setAlerts(JSON.parse(savedAlerts));
+        } catch (e) {
+          console.error("Failed to parse alerts:", e);
+        }
+      }
+      
+      invoke<boolean>("get_autostart_status").then(setAutostart).catch(console.error);
+
+      // CRITICAL: Show window only after React has finished first render and state init
+      setTimeout(() => {
+        invoke("show_window").catch(console.error);
+      }, 150); // Increased delay slightly for stability
+
+    } catch (error) {
+      console.error("Error initializing settings state:", error);
+      invoke("show_window").catch(console.error);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Получаем текущую цену для расчета направления алерта
+    const fetchCurrentPrice = async () => {
+      try {
+        if (useManualPrice[currentSymbol]) {
+          setPriceUsd(manualPrices[currentSymbol] || 0);
+          return;
+        }
+        const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
+        const category = currency === "USD" ? "inverse" : "spot";
+        const url = `https://api.bybit.com/v5/market/tickers?category=${category}&symbol=${symbol}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.retCode === 0 && data.result?.list?.[0]) {
+          setPriceUsd(parseFloat(data.result.list[0].lastPrice));
+        }
+      } catch (e) {
+        console.error("Failed to fetch price in settings:", e);
+      }
+    };
+    fetchCurrentPrice();
+  }, [currentSymbol, currency, manualPrices, useManualPrice]);
+
+  useEffect(() => {
     localStorage.setItem("priceAlerts", JSON.stringify(alerts));
+    emit("alerts-changed", alerts);
   }, [alerts]);
 
   useEffect(() => {
-    // Получаем статус автозагрузки при запуске
-    invoke<boolean>("get_autostart_status")
-      .then(setAutostart)
-      .catch(console.error);
-
-    // Применяем начальные настройки окна
-    invoke("set_always_on_top", { alwaysOnTop });
-  }, []);
-
-  // Use useRef to store chart data for different timeframes
-  const allChartData = useRef<Record<Timeframe, number[]>>({
-    "24h": [],
-    "1w": [],
-    "1m": [],
-    "1y": [],
-  });
-
-  useEffect(() => {
-    const getKlineParams = (tf: Timeframe) => {
-      switch (tf) {
-        case "24h": return { interval: "15", limit: 96 }; // 15m * 96 = 24h
-        case "1w": return { interval: "60", limit: 168 }; // 1h * 168 = 7d
-        case "1m": return { interval: "240", limit: 180 }; // 4h * 180 = 30d
-        case "1y": return { interval: "D", limit: 365 }; // 1d * 365 = 1y
-        default: return { interval: "15", limit: 96 };
-      }
-    };
-
-    const fetchHistory = async (tf: Timeframe): Promise<number[]> => {
-      if (currentSymbol === "FUNTIK" && currency === "FANTIK") {
-        const { limit } = getKlineParams(tf);
-        return new Array(limit).fill(manualFuntikPrice);
-      }
-      try {
-        const { interval, limit } = getKlineParams(tf);
-        const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
-        const category = currency === "USD" ? "inverse" : "spot";
-        const url = `https://api.bybit.com/v5/market/kline?category=${category}&symbol=${symbol}&interval=${interval}&limit=${limit}&t=${Date.now()}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-          console.error(`Error fetching history for ${tf}:`, response.statusText);
-          return [];
+    const unlisten = listen<PriceAlert[]>("alerts-changed", (e) => {
+      setAlerts(prev => {
+        if (JSON.stringify(e.payload) !== JSON.stringify(prev)) {
+          return e.payload;
         }
-        const data = await response.json();
-        if (data.retCode === 0 && data.result && data.result.list) {
-          return data.result.list
-            .map((item: string[]) => parseFloat(item[4]))
-            .reverse();
-        }
-      } catch (err) {
-        console.error(`Error fetching history for ${tf}:`, err);
-      }
-      return [];
-    };
-
-    const fetchData = async () => {
-      console.log(`Fetching data for ${currentSymbol}/${currency}...`);
-      
-      if (currentSymbol === "FUNTIK" && currency === "FANTIK") {
-        const newPrice = manualFuntikPrice;
-        setPriceUsd(newPrice);
-        setError(null);
-        
-        // Проверка алертов для тестовой пары
-        setAlerts(prev => {
-          let soundPlayed = false;
-          const updated = prev.map(alert => {
-            if (alert.active && alert.symbol === "FUNTIK" && alert.currency === "FANTIK") {
-              const triggered = alert.direction === "above" 
-                ? newPrice >= alert.targetPrice 
-                : newPrice <= alert.targetPrice;
-              
-              if (triggered) {
-                if (!soundPlayed) {
-                  playAlertSound();
-                  soundPlayed = true;
-                }
-                return { ...alert, active: false };
-              }
-            }
-            return alert;
-          });
-          return updated;
-        });
-
-        // Update changes and history
-        const timeframes: Timeframe[] = ["24h", "1w", "1m", "1y"];
-        for (const tf of timeframes) {
-          const prices = await fetchHistory(tf);
-          allChartData.current[tf] = prices;
-        }
-        setChange24h(0);
-        setChange1w(0);
-        setChange1m(0);
-        setChange1y(0);
-        setDataUpdatedCounter(prev => prev + 1);
-        return;
-      }
-
-      // Fetch current price and 24h change
-      try {
-        const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
-        const category = currency === "USD" ? "inverse" : "spot";
-        const url = `https://api.bybit.com/v5/market/tickers?category=${category}&symbol=${symbol}&t=${Date.now()}`;
-        console.log(`Fetching ticker: ${url}`);
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          throw new Error("Error loading price");
-        }
-
-        const data = await response.json();
-        console.log("Ticker data received:", data);
-        
-        if (data.retCode === 0 && data.result && data.result.list && data.result.list.length > 0) {
-          const item = data.result.list[0];
-          const newPrice = parseFloat(item.lastPrice);
-          console.log(`Setting new price: ${newPrice} ${currency}`);
-          setPriceUsd(newPrice);
-          setError(null);
-
-          // Проверка алертов
-          setAlerts(prev => {
-            let soundPlayed = false;
-            const updated = prev.map(alert => {
-              if (alert.active && alert.symbol === currentSymbol && alert.currency === currency) {
-                const triggered = alert.direction === "above" 
-                  ? newPrice >= alert.targetPrice 
-                  : newPrice <= alert.targetPrice;
-                
-                if (triggered) {
-                  if (!soundPlayed) {
-                    playAlertSound();
-                    soundPlayed = true;
-                  }
-                  return { ...alert, active: false };
-                }
-              }
-              return alert;
-            });
-            return updated;
-          });
-        } else {
-          throw new Error(t("Error loading price"));
-        }
-      } catch (err) {
-        const errorMessage = t("No connection to Bybit API, trying again");
-        setError(errorMessage);
-        console.error("Error fetching price from Bybit:", err);
-      }
-
-      // Fetch historical data for all timeframes and calculate changes
-      const timeframes: Timeframe[] = ["24h", "1w", "1m", "1y"];
-      for (const tf of timeframes) {
-        const prices = await fetchHistory(tf);
-        allChartData.current[tf] = prices; // Store all prices
-        const change = calculatePercentageChange(prices);
-        switch (tf) {
-          case "24h": setChange24h(change); break;
-          case "1w": setChange1w(change); break;
-          case "1m": setChange1m(change); break;
-          case "1y": setChange1y(change); break;
-        }
-      }
-      // Increment counter to trigger chart data update
-      setDataUpdatedCounter(prev => prev + 1);
-    };
-
-    fetchData(); // Initial fetch
-
-    const interval = setInterval(() => {
-        fetchData(); // Fetch data periodically
-    }, refreshInterval);
-
-    return () => clearInterval(interval);
-  }, [currency, currentSymbol, t, refreshInterval, manualFuntikPrice]); // Add currency, currentSymbol, refreshInterval and manualFuntikPrice to dependencies
-
-  // Update chartData when timeframe changes or data is updated
-  useEffect(() => {
-    setChartData(allChartData.current[timeframe]);
-  }, [timeframe, dataUpdatedCounter]);
-
-  useEffect(() => {
-    // Слушаем изменение таймфрейма из нативного меню
-    let unlistenPromise: Promise<() => void>;
-    unlistenPromise = listen<string>("timeframe-changed", (event) => {
-      const newTf = event.payload as Timeframe;
-      if (timeframes.includes(newTf)) {
-        setTimeframe(newTf);
-        localStorage.setItem("timeframe", newTf);
-      }
-    });
-
-    return () => {
-      unlistenPromise.then(unlisten => {
-        if (unlisten) {
-          unlisten();
-        }
+        return prev;
       });
-    };
-  }, [timeframes]);
+    });
+    return () => { unlisten.then(u => u()); };
+  }, []); // Only once on mount
 
   useEffect(() => {
     // Слушаем изменение темы из нативного меню
-    let unlistenPromise: Promise<() => void>;
-    unlistenPromise = listen<string>("theme-changed", (event) => {
+    const unlistenTheme = listen<string>("theme-changed", (event) => {
       let newTheme: Theme;
       if (event.payload === "theme_light") newTheme = "light";
       else if (event.payload === "theme_anime") newTheme = "anime";
@@ -349,86 +228,511 @@ function App() {
       localStorage.setItem("theme", newTheme);
     });
 
+    const unlistenManualPrices = listen<Record<string, number>>("manual-prices-changed", (e) => {
+      setManualPrices(e.payload);
+    });
+
+    const unlistenUseManualPrice = listen<Record<string, boolean>>("use-manual-price-changed", (e) => {
+      setUseManualPrice(e.payload);
+    });
+
     return () => {
-      unlistenPromise.then(unlisten => {
-        if (unlisten) {
-          unlisten();
-        }
-      });
+      unlistenTheme.then(unlisten => unlisten());
+      unlistenManualPrices.then(u => u());
+      unlistenUseManualPrice.then(u => u());
     };
   }, []);
 
   useEffect(() => {
-    // Слушаем изменение языка из нативного меню
-    let unlistenPromise: Promise<() => void>;
-    unlistenPromise = listen<string>("language-changed", (event) => {
-      console.log("Language changed event received:", event.payload);
+    // Слушаем изменение языка
+    let unlistenPromise = listen<string>("language-changed", (event) => {
       const lang = event.payload === "lang_en" ? "en" : "ru";
-      console.log("Changing language to:", lang);
       i18n.changeLanguage(lang);
-      console.log("Current i18n language after change:", i18n.language);
     });
 
     return () => {
-      unlistenPromise.then(unlisten => {
-        if (unlisten) {
-          unlisten();
-        }
-      });
+      unlistenPromise.then(unlisten => unlisten());
     };
   }, []);
 
-  useEffect(() => {
-    // Listen for currency change
-    let unlistenPromise: Promise<() => void>;
-    unlistenPromise = listen<string>("currency-changed", (event) => {
-      setCurrency(event.payload as Currency);
-    });
-    return () => { unlistenPromise.then(u => u()); };
-  }, []);
-
-  useEffect(() => {
-    // Listen for symbol change
-    let unlistenPromise: Promise<() => void>;
-    unlistenPromise = listen<string>("symbol-changed", (event) => {
-      setCurrentSymbol(event.payload);
-    });
-    return () => { unlistenPromise.then(u => u()); };
-  }, []);
-
-  useEffect(() => {
-    // Listen for manual price change
-    let unlistenPromise: Promise<() => void>;
-    unlistenPromise = listen<number>("manual-price-changed", (event) => {
-      setManualFuntikPrice(event.payload);
-    });
-    return () => { unlistenPromise.then(u => u()); };
-  }, []);
-
-  useEffect(() => {
-     // Listen for opacity change
-     let unlistenPromise: Promise<() => void>;
-     unlistenPromise = listen<number>("opacity-changed", (event) => {
-       setOpacity(event.payload);
-     });
-     return () => { unlistenPromise.then(u => u()); };
-   }, []);
-
-   useEffect(() => {
-     // Listen for refresh interval change
-     let unlistenPromise: Promise<() => void>;
-     unlistenPromise = listen<number>("refresh-interval-changed", (event) => {
-       setRefreshInterval(event.payload);
-     });
-     return () => { unlistenPromise.then(u => u()); };
-   }, []);
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    invoke("show_context_menu");
+  const handleCurrencyChange = async (newCurrency: Currency) => {
+    setCurrency(newCurrency);
+    localStorage.setItem("currency", newCurrency);
+    await emit("currency-changed", newCurrency);
   };
 
-  const displayChange = () => {
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    let payload = "theme_" + newTheme;
+    emit("theme-changed", payload);
+  };
+
+  const handleLanguageChange = (lang: string) => {
+    i18n.changeLanguage(lang);
+    emit("language-changed", lang === "en" ? "lang_en" : "lang_ru");
+  };
+
+  const handleAutostartToggle = async (enable: boolean) => {
+    try {
+      await invoke("set_autostart", { enable });
+      setAutostart(enable);
+    } catch (error) {
+      console.error("Failed to set autostart:", error);
+    }
+  };
+
+  const handleAlwaysOnTopChange = async (checked: boolean) => {
+    setAlwaysOnTop(checked);
+    localStorage.setItem("alwaysOnTop", String(checked));
+    await invoke("set_always_on_top", { alwaysOnTop: checked });
+  };
+
+  const handleOpacityChange = async (val: number) => {
+    setOpacity(val);
+    localStorage.setItem("windowOpacity", String(val));
+    await emit("opacity-changed", val);
+  };
+
+  const handleRefreshIntervalChange = async (val: number) => {
+    setRefreshInterval(val);
+    localStorage.setItem("refreshInterval", String(val));
+    await emit("refresh-interval-changed", val);
+  };
+
+  const handleSymbolChange = async (val: string) => {
+    setCurrentSymbol(val);
+    localStorage.setItem("currentSymbol", val);
+    if (val === "FUNTIK") {
+      setCurrency("FANTIK");
+      localStorage.setItem("currency", "FANTIK");
+      await emit("currency-changed", "FANTIK");
+    } else if (val === "SOL" && (currency === "TRY" || currency === "PLN" || currency === "FANTIK")) {
+      setCurrency("USD");
+      localStorage.setItem("currency", "USD");
+      await emit("currency-changed", "USD");
+    } else if (currency === "FANTIK" && val !== "FUNTIK") {
+      setCurrency("USD");
+      localStorage.setItem("currency", "USD");
+      await emit("currency-changed", "USD");
+    }
+    await emit("symbol-changed", val);
+  };
+
+  const handleManualPriceChange = (symbol: string, val: string) => {
+    const price = parseFloat(val);
+    const newPrice = isNaN(price) ? 0 : price;
+    const newPrices = { ...manualPrices, [symbol]: newPrice };
+    setManualPrices(newPrices);
+    localStorage.setItem("manualPrices", JSON.stringify(newPrices));
+    emit("manual-prices-changed", newPrices);
+  };
+
+  const handleUseManualPriceToggle = (symbol: string, checked: boolean) => {
+    const newUseManual = { ...useManualPrice, [symbol]: checked };
+    setUseManualPrice(newUseManual);
+    localStorage.setItem("useManualPrice", JSON.stringify(newUseManual));
+    emit("use-manual-price-changed", newUseManual);
+  };
+
+  const handleAddAlert = () => {
+    const price = parseFloat(newAlertPrice);
+    if (isNaN(price) || price <= 0) return;
+    
+    let currentPrice = priceUsd;
+    if (!currentPrice && useManualPrice[currentSymbol]) {
+      currentPrice = manualPrices[currentSymbol];
+    }
+
+    if (!currentPrice) {
+      console.warn("Cannot add alert: current price is not available yet");
+      return;
+    }
+
+    const newAlert: PriceAlert = {
+      id: Date.now().toString(),
+      symbol: currentSymbol,
+      currency: currency,
+      targetPrice: price,
+      direction: price > currentPrice ? "above" : "below",
+      active: true
+    };
+    setAlerts([...alerts, newAlert]);
+    setNewAlertPrice("");
+  };
+
+  return (
+    <div className={`app ${theme} settings-window`} style={{ opacity: 1, height: '100vh', overflow: 'hidden' }}>
+      <div className="settings-header" data-tauri-drag-region>
+        <span data-tauri-drag-region>{t("Settings")}</span>
+        <button className="close-button" onClick={() => invoke("close_window")}>×</button>
+      </div>
+      <div className="settings-content">
+        <div className="settings-scroll-area">
+          <div className="settings-grid">
+            <div className="settings-group">
+              <label className="settings-label">{t("Cryptocurrency")}</label>
+              <select value={currentSymbol} onChange={(e) => handleSymbolChange(e.target.value)} className="currency-select">
+                <option value="BTC">Bitcoin (BTC)</option>
+                <option value="ETH">Ethereum (ETH)</option>
+                <option value="SOL">Solana (SOL)</option>
+                {/* <option value="FUNTIK">Funtik (TEST)</option> */}
+              </select>
+            </div>
+            <div className="settings-group">
+              <label className="settings-label">{t("Currency")}</label>
+              <select value={currency} onChange={(e) => handleCurrencyChange(e.target.value as Currency)} className="currency-select">
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="BRL">BRL (R$)</option>
+                {currentSymbol === "FUNTIK" ? (
+                  <option value="FANTIK">Fantik (🍬)</option>
+                ) : (
+                  <>
+                    <option value="TRY">TRY (₺)</option>
+                    <option value="PLN">PLN (zł)</option>
+                  </>
+                )}
+              </select>
+            </div>
+            <div className="settings-group">
+              <label className="settings-label">{t("Theme")}</label>
+              <select value={theme} onChange={(e) => handleThemeChange(e.target.value as Theme)} className="theme-select">
+                <option value="light">{t("Light")}</option>
+                <option value="dark">{t("Dark")}</option>
+                <option value="anime">{t("Anime")}</option>
+                <option value="billionaire">{t("Billionaire")}</option>
+                <option value="dragon">{t("Dragon")}</option>
+                <option value="bender">{t("Bender")}</option>
+                <option value="casino">{t("Casino")}</option>
+                <option value="lord">{t("Lord")}</option>
+              </select>
+            </div>
+            <div className="settings-group">
+              <label className="settings-label">{t("Language")}</label>
+              <select className="currency-select" value={i18n.language.startsWith('ru') ? 'ru' : 'en'} onChange={(e) => handleLanguageChange(e.target.value)}>
+                <option value="en">{t("English")}</option>
+                <option value="ru">{t("Russian")}</option>
+              </select>
+            </div>
+          </div>
+          <div className="settings-separator"></div>
+          {/* 
+          <div className="settings-group">
+            <div className="checkbox-group">
+              <label className="settings-label">
+                <input type="checkbox" checked={useManualPrice[currentSymbol] || false} onChange={(e) => handleUseManualPriceToggle(currentSymbol, e.target.checked)} />
+                {t("Use Manual Price")}
+              </label>
+            </div>
+            {useManualPrice[currentSymbol] && (
+              <div style={{ marginTop: '8px' }}>
+                <input type="number" value={manualPrices[currentSymbol] || 0} onChange={(e) => handleManualPriceChange(currentSymbol, e.target.value)} className="alert-input" style={{ width: '100%' }} />
+              </div>
+            )}
+          </div>
+          <div className="settings-separator"></div>
+          */}
+          <div className="settings-group">
+            <label className="settings-label">{t("Refresh Interval")}</label>
+            <select value={refreshInterval} onChange={(e) => handleRefreshIntervalChange(parseInt(e.target.value))} className="theme-select">
+              <option value="5000">5 {t("sec")}</option>
+              <option value="10000">10 {t("sec")}</option>
+              <option value="30000">30 {t("sec")}</option>
+              <option value="60000">1 {t("min")}</option>
+              <option value="300000">5 {t("min")}</option>
+            </select>
+          </div>
+          <div className="settings-separator"></div>
+          <div className="settings-group">
+            <label className="settings-label">{t("Price Alerts")}</label>
+            <div className="alert-input-group">
+              <input type="number" value={newAlertPrice} onChange={(e) => setNewAlertPrice(e.target.value)} placeholder={t("Target Price")} className="alert-input" />
+              <button onClick={handleAddAlert} className="alert-add-button">+</button>
+            </div>
+            <div className="alerts-list">
+              {alerts.filter(a => a.symbol === currentSymbol && a.currency === currency).map(alert => (
+                <div key={alert.id} className={`alert-item ${!alert.active ? 'inactive' : ''}`}>
+                  <span>{alert.direction === "above" ? "↑" : "↓"} {alert.targetPrice} {currencySymbols[alert.currency as Currency]}</span>
+                  <button onClick={() => setAlerts(alerts.filter(a => a.id !== alert.id))} className="alert-remove-button">×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="settings-separator"></div>
+          <div className="settings-row">
+            <div className="checkbox-group">
+              <label className="settings-label">
+                <input type="checkbox" checked={alwaysOnTop} onChange={(e) => handleAlwaysOnTopChange(e.target.checked)} />
+                {t("Always on Top")}
+              </label>
+            </div>
+            <div className="checkbox-group">
+              <label className="settings-label">
+                <input type="checkbox" checked={autostart} onChange={(e) => handleAutostartToggle(e.target.checked)} />
+                {t("Launch at startup")}
+              </label>
+            </div>
+          </div>
+          <div className="settings-group">
+            <label className="settings-label">{t("Opacity")}: {Math.round(opacity * 100)}%</label>
+            <input type="range" min="0.2" max="1.0" step="0.05" value={opacity} onChange={(e) => handleOpacityChange(parseFloat(e.target.value))} className="opacity-slider" />
+          </div>
+        </div>
+        <div className="settings-footer">
+          <button className="about-button" onClick={() => invoke("open_about")}>{t("About Developer")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MainWindow() {
+  const { t, i18n } = useTranslation();
+  const [priceUsd, setPriceUsd] = useState<number | null>(null);
+
+  const openSettings = () => {
+    // Fire and forget event to avoid any invoke blocking/deadlocks
+    emit("request-open-settings");
+  };
+
+  const [change24h, setChange24h] = useState<number | null>(null);
+  const [change1w, setChange1w] = useState<number | null>(null);
+  const [change1m, setChange1m] = useState<number | null>(null);
+  const [change1y, setChange1y] = useState<number | null>(null);
+  const [chartData, setChartData] = useState<number[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [timeframe, setTimeframe] = useState<Timeframe>(() => (localStorage.getItem("timeframe") as Timeframe) || "24h");
+  const timeframes: Timeframe[] = ["24h", "1w", "1m", "1y"];
+
+  const handleTimeframeClick = () => {
+    const currentIndex = timeframes.indexOf(timeframe);
+    const nextTimeframe = timeframes[(currentIndex + 1) % timeframes.length];
+    setTimeframe(nextTimeframe);
+    localStorage.setItem("timeframe", nextTimeframe);
+  };
+
+  const getTimeframeWheel = () => {
+    const currentIndex = timeframes.indexOf(timeframe);
+    const prevIndex = (currentIndex - 1 + timeframes.length) % timeframes.length;
+    const nextIndex = (currentIndex + 1) % timeframes.length;
+    return [timeframes[prevIndex], timeframes[currentIndex], timeframes[nextIndex]];
+  };
+
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("theme") as Theme) || "light");
+  const [currency, setCurrency] = useState<Currency>(() => (localStorage.getItem("currency") as Currency) || "USD");
+  const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
+  const [alwaysOnTop, setAlwaysOnTop] = useState(() => localStorage.getItem("alwaysOnTop") === "true");
+  const [opacity, setOpacity] = useState(() => parseFloat(localStorage.getItem("windowOpacity") || "1.0"));
+  const [refreshInterval, setRefreshInterval] = useState(() => parseInt(localStorage.getItem("refreshInterval") || "5000"));
+  const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem("currentSymbol") || "BTC");
+  const [manualPrices, setManualPrices] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem("manualPrices");
+      return saved ? JSON.parse(saved) : { BTC: 50000, ETH: 3000, SOL: 100, FUNTIK: 100 };
+    } catch (e) { return { BTC: 50000, ETH: 3000, SOL: 100, FUNTIK: 100 }; }
+  });
+  const [useManualPrice, setUseManualPrice] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem("useManualPrice");
+      return saved ? JSON.parse(saved) : { BTC: false, ETH: false, SOL: false, FUNTIK: true };
+    } catch (e) { return { BTC: false, ETH: false, SOL: false, FUNTIK: true }; }
+  });
+  const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
+    try {
+      const saved = localStorage.getItem("priceAlerts");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to parse alerts in MainWindow:", e);
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("priceAlerts", JSON.stringify(alerts));
+    emit("alerts-changed", alerts);
+  }, [alerts]);
+
+  useEffect(() => {
+    invoke("set_always_on_top", { alwaysOnTop });
+  }, []);
+
+  const allChartData = useRef<Record<Timeframe, number[]>>({ "24h": [], "1w": [], "1m": [], "1y": [] });
+
+  useEffect(() => {
+    const getKlineParams = (tf: Timeframe) => {
+      switch (tf) {
+        case "24h": return { interval: "15", limit: 96 };
+        case "1w": return { interval: "60", limit: 168 };
+        case "1m": return { interval: "240", limit: 180 };
+        case "1y": return { interval: "D", limit: 365 };
+        default: return { interval: "15", limit: 96 };
+      }
+    };
+
+    const fetchHistory = async (tf: Timeframe): Promise<number[]> => {
+      if (useManualPrice[currentSymbol]) {
+        const { limit } = getKlineParams(tf);
+        return new Array(limit).fill(manualPrices[currentSymbol] || 0);
+      }
+      try {
+        const { interval, limit } = getKlineParams(tf);
+        const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
+        const category = currency === "USD" ? "inverse" : "spot";
+        const url = `https://api.bybit.com/v5/market/kline?category=${category}&symbol=${symbol}&interval=${interval}&limit=${limit}&t=${Date.now()}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.retCode === 0 && data.result?.list) {
+          return data.result.list.map((item: string[]) => parseFloat(item[4])).reverse();
+        }
+      } catch (err) {
+        console.error(`Error fetching history for ${tf}:`, err);
+      }
+      return [];
+    };
+
+    const fetchData = async () => {
+      // 1. Handle alerts for all manual symbols
+      setAlerts(prev => {
+        let soundPlayed = false;
+        let changed = false;
+        const newAlerts = prev.map(alert => {
+          if (alert.active && useManualPrice[alert.symbol]) {
+            const manualPrice = manualPrices[alert.symbol];
+            const triggered = alert.direction === "above" ? manualPrice >= alert.targetPrice : manualPrice <= alert.targetPrice;
+            if (triggered) {
+              console.log("ALERT TRIGGERED (MANUAL)!", alert.symbol, alert.targetPrice, "Current:", manualPrice);
+              if (!soundPlayed) { playAlertSound(); soundPlayed = true; }
+              changed = true;
+              return { ...alert, active: false };
+            }
+          }
+          return alert;
+        });
+        return changed ? newAlerts : prev;
+      });
+
+      // 2. If current symbol is manual, just update UI and fetch history (flat line)
+      if (useManualPrice[currentSymbol]) {
+        const newPrice = manualPrices[currentSymbol];
+        setPriceUsd(newPrice);
+        setError(null);
+        const tfs: Timeframe[] = ["24h", "1w", "1m", "1y"];
+        for (const tf of tfs) allChartData.current[tf] = await fetchHistory(tf);
+        setChange24h(0); setChange1w(0); setChange1m(0); setChange1y(0);
+        setDataUpdatedCounter(prev => prev + 1);
+        return;
+      }
+
+      try {
+        const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
+        const category = currency === "USD" ? "inverse" : "spot";
+        const url = `https://api.bybit.com/v5/market/tickers?category=${category}&symbol=${symbol}&t=${Date.now()}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.retCode === 0 && data.result?.list?.[0]) {
+          const newPrice = parseFloat(data.result.list[0].lastPrice);
+          setPriceUsd(newPrice);
+          setError(null);
+          
+          // Check alerts for current symbol (if not already handled by manual logic)
+          setAlerts(prev => {
+            let soundPlayed = false;
+            let changed = false;
+            const newAlerts = prev.map(alert => {
+              if (alert.active && alert.symbol === currentSymbol && alert.currency === currency && !useManualPrice[currentSymbol]) {
+                const triggered = alert.direction === "above" ? newPrice >= alert.targetPrice : newPrice <= alert.targetPrice;
+                if (triggered) {
+                  console.log("ALERT TRIGGERED (API)!", currentSymbol, alert.targetPrice, "Current:", newPrice);
+                  if (!soundPlayed) { playAlertSound(); soundPlayed = true; }
+                  changed = true;
+                  return { ...alert, active: false };
+                }
+              }
+              return alert;
+            });
+            return changed ? newAlerts : prev;
+          });
+        } else {
+          throw new Error(t("Error loading price"));
+        }
+      } catch (err) {
+        setError(t("No connection to Bybit API, trying again"));
+      }
+
+      const tfs: Timeframe[] = ["24h", "1w", "1m", "1y"];
+      for (const tf of tfs) {
+        const prices = await fetchHistory(tf);
+        allChartData.current[tf] = prices;
+        const change = calculatePercentageChange(prices);
+        switch (tf) {
+          case "24h": setChange24h(change); break;
+          case "1w": setChange1w(change); break;
+          case "1m": setChange1m(change); break;
+          case "1y": setChange1y(change); break;
+        }
+      }
+      setDataUpdatedCounter(prev => prev + 1);
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, refreshInterval);
+    return () => clearInterval(interval);
+  }, [currency, currentSymbol, t, refreshInterval, manualPrices, useManualPrice]);
+
+  useEffect(() => {
+    setChartData(allChartData.current[timeframe]);
+  }, [timeframe, dataUpdatedCounter]);
+
+  useEffect(() => {
+    // Initialize language
+    const savedLang = localStorage.getItem("language");
+    if (savedLang) {
+      i18n.changeLanguage(savedLang === "lang_en" ? "en" : "ru");
+    }
+
+    const unlisten1 = listen<string>("timeframe-changed", (e) => {
+      const newTf = e.payload as Timeframe;
+      if (timeframes.includes(newTf)) { setTimeframe(newTf); localStorage.setItem("timeframe", newTf); }
+    });
+    const unlisten2 = listen<string>("theme-changed", (e) => {
+      let newTheme: Theme = "dark";
+      if (e.payload === "theme_light") newTheme = "light";
+      else if (e.payload === "theme_anime") newTheme = "anime";
+      else if (e.payload === "theme_billionaire") newTheme = "billionaire";
+      else if (e.payload === "theme_dragon") newTheme = "dragon";
+      else if (e.payload === "theme_bender") newTheme = "bender";
+      else if (e.payload === "theme_casino") newTheme = "casino";
+      else if (e.payload === "theme_lord") newTheme = "lord";
+      setTheme(newTheme); localStorage.setItem("theme", newTheme);
+    });
+    const unlisten3 = listen<string>("language-changed", (e) => {
+      i18n.changeLanguage(e.payload === "lang_en" ? "en" : "ru");
+    });
+    const unlisten4 = listen<string>("currency-changed", (e) => setCurrency(e.payload as Currency));
+    const unlisten5 = listen<string>("symbol-changed", (e) => setCurrentSymbol(e.payload));
+    const unlisten6 = listen<Record<string, number>>("manual-prices-changed", (e) => setManualPrices(e.payload));
+    const unlisten10 = listen<Record<string, boolean>>("use-manual-price-changed", (e) => setUseManualPrice(e.payload));
+    const unlisten7 = listen<number>("opacity-changed", (e) => setOpacity(e.payload));
+    const unlisten8 = listen<number>("refresh-interval-changed", (e) => setRefreshInterval(e.payload));
+    const unlisten9 = listen<PriceAlert[]>("alerts-changed", (e) => {
+      setAlerts(prev => {
+        if (JSON.stringify(e.payload) !== JSON.stringify(prev)) {
+          return e.payload;
+        }
+        return prev;
+      });
+    });
+
+    return () => {
+      unlisten1.then(u => u()); unlisten2.then(u => u()); unlisten3.then(u => u());
+      unlisten4.then(u => u()); unlisten5.then(u => u()); unlisten6.then(u => u());
+      unlisten7.then(u => u()); unlisten8.then(u => u()); unlisten9.then(u => u());
+      unlisten10.then(u => u());
+    };
+  }, []); // Only on mount
+
+  const currentChange = useMemo(() => {
     switch (timeframe) {
       case "24h": return change24h;
       case "1w": return change1w;
@@ -436,333 +740,30 @@ function App() {
       case "1y": return change1y;
       default: return change24h;
     }
-  };
-
-  const currentChange = displayChange();
-
-  if (isSettings) {
-    const handleCurrencyChange = async (newCurrency: Currency) => {
-      setCurrency(newCurrency);
-      localStorage.setItem("currency", newCurrency);
-      await emit("currency-changed", newCurrency);
-    };
-
-    const handleThemeChange = (newTheme: Theme) => {
-      setTheme(newTheme);
-      localStorage.setItem("theme", newTheme);
-      
-      let payload = "theme_dark";
-      if (newTheme === "light") payload = "theme_light";
-      else if (newTheme === "anime") payload = "theme_anime";
-      else if (newTheme === "billionaire") payload = "theme_billionaire";
-      else if (newTheme === "dragon") payload = "theme_dragon";
-      else if (newTheme === "bender") payload = "theme_bender";
-      else if (newTheme === "casino") payload = "theme_casino";
-      else if (newTheme === "lord") payload = "theme_lord";
-      
-      emit("theme-changed", payload);
-    };
-
-    const handleLanguageChange = (lang: string) => {
-      i18n.changeLanguage(lang);
-      emit("language-changed", lang === "en" ? "lang_en" : "lang_ru");
-    };
-
-    const handleAutostartToggle = async (enable: boolean) => {
-      try {
-        await invoke("set_autostart", { enable });
-        setAutostart(enable);
-      } catch (error) {
-        console.error("Failed to set autostart:", error);
-      }
-    };
-
-    const handleAlwaysOnTopChange = async (checked: boolean) => {
-      setAlwaysOnTop(checked);
-      localStorage.setItem("alwaysOnTop", String(checked));
-      await invoke("set_always_on_top", { alwaysOnTop: checked });
-    };
-
-    const handleOpacityChange = async (val: number) => {
-      setOpacity(val);
-      localStorage.setItem("windowOpacity", String(val));
-      await emit("opacity-changed", val);
-    };
-
-    const handleRefreshIntervalChange = async (val: number) => {
-      setRefreshInterval(val);
-      localStorage.setItem("refreshInterval", String(val));
-      await emit("refresh-interval-changed", val);
-    };
-
-    const handleSymbolChange = async (val: string) => {
-      setCurrentSymbol(val);
-      localStorage.setItem("currentSymbol", val);
-      
-      // If the current currency is not supported by the new symbol, switch to USD
-      if (val === "FUNTIK") {
-        setCurrency("FANTIK");
-        localStorage.setItem("currency", "FANTIK");
-        await emit("currency-changed", "FANTIK");
-      } else if (val === "SOL" && (currency === "TRY" || currency === "PLN" || currency === "FANTIK")) {
-        setCurrency("USD");
-        localStorage.setItem("currency", "USD");
-        await emit("currency-changed", "USD");
-      } else if (currency === "FANTIK" && val !== "FUNTIK") {
-        setCurrency("USD");
-        localStorage.setItem("currency", "USD");
-        await emit("currency-changed", "USD");
-      }
-      
-      await emit("symbol-changed", val);
-    };
-
-    const handleManualPriceChange = (val: string) => {
-      const price = parseFloat(val);
-      const newPrice = isNaN(price) ? 0 : price;
-      setManualFuntikPrice(newPrice);
-      localStorage.setItem("manualFuntikPrice", val);
-      emit("manual-price-changed", newPrice);
-    };
-
-    const openAbout = async () => {
-      await invoke("open_about");
-    };
-
-    const handleAddAlert = () => {
-      const price = parseFloat(newAlertPrice);
-      if (isNaN(price) || price <= 0 || !priceUsd) return;
-
-      const newAlert: PriceAlert = {
-        id: Date.now().toString(),
-        symbol: currentSymbol,
-        currency: currency,
-        targetPrice: price,
-        direction: price > priceUsd ? "above" : "below",
-        active: true
-      };
-
-      setAlerts([...alerts, newAlert]);
-      setNewAlertPrice("");
-    };
-
-    const removeAlert = (id: string) => {
-      setAlerts(alerts.filter(a => a.id !== id));
-    };
-
-    return (
-      <div className={`app ${theme} settings-window`} data-tauri-drag-region>
-        <div className="titlebar" data-tauri-drag-region>
-          <span className="title">{t("Settings")}</span>
-        </div>
-        <div className="settings-content">
-          <div className="settings-scroll-area">
-            <div className="settings-grid">
-              <div className="settings-group">
-                <label className="settings-label">{t("Cryptocurrency")}</label>
-                <select 
-                  value={currentSymbol} 
-                  onChange={(e) => handleSymbolChange(e.target.value)}
-                  className="currency-select"
-                >
-                  <option value="BTC">Bitcoin (BTC)</option>
-                  <option value="ETH">Ethereum (ETH)</option>
-                  <option value="SOL">Solana (SOL)</option>
-                  <option value="FUNTIK">Funtik (TEST)</option>
-                </select>
-              </div>
-
-              <div className="settings-group">
-                <label className="settings-label">{t("Currency")}</label>
-                <select 
-                  value={currency} 
-                  onChange={(e) => handleCurrencyChange(e.target.value as Currency)}
-                  className="currency-select"
-                >
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="BRL">BRL (R$)</option>
-                  {currentSymbol === "FUNTIK" ? (
-                    <option value="FANTIK">Fantik (🍬)</option>
-                  ) : (
-                    <>
-                      <option value="TRY">TRY (₺)</option>
-                      <option value="PLN">PLN (zł)</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div className="settings-group">
-                <label className="settings-label">{t("Theme")}</label>
-                <select 
-                  value={theme} 
-                  onChange={(e) => handleThemeChange(e.target.value as Theme)}
-                  className="theme-select"
-                >
-                  <option value="light">{t("Light")}</option>
-                  <option value="dark">{t("Dark")}</option>
-                  <option value="anime">{t("Anime")}</option>
-                  <option value="billionaire">{t("Billionaire")}</option>
-                  <option value="dragon">{t("Dragon")}</option>
-                  <option value="bender">{t("Bender")}</option>
-                  <option value="casino">{t("Casino")}</option>
-                  <option value="lord">{t("Lord")}</option>
-                </select>
-              </div>
-
-              <div className="settings-group">
-                <label className="settings-label">{t("Language")}</label>
-                <select 
-                  className="currency-select"
-                  value={i18n.language.startsWith('ru') ? 'ru' : 'en'}
-                  onChange={(e) => handleLanguageChange(e.target.value)}
-                >
-                  <option value="en">{t("English")}</option>
-                  <option value="ru">{t("Russian")}</option>
-                </select>
-              </div>
-
-              {currentSymbol === "FUNTIK" && (
-                <div className="settings-group">
-                  <label className="settings-label">{t("Manual Price")}</label>
-                  <input 
-                    type="number" 
-                    value={manualFuntikPrice} 
-                    onChange={(e) => handleManualPriceChange(e.target.value)}
-                    className="alert-input"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="settings-separator"></div>
-
-            <div className="settings-group">
-              <label className="settings-label">{t("Refresh Interval")}</label>
-              <select 
-                value={refreshInterval} 
-                onChange={(e) => handleRefreshIntervalChange(parseInt(e.target.value))}
-                className="theme-select"
-              >
-                <option value="5000">5 {t("sec")}</option>
-                <option value="10000">10 {t("sec")}</option>
-                <option value="30000">30 {t("sec")}</option>
-                <option value="60000">1 {t("min")}</option>
-                <option value="300000">5 {t("min")}</option>
-              </select>
-            </div>
-
-            <div className="settings-separator"></div>
-
-            <div className="settings-group">
-              <label className="settings-label">{t("Price Alerts")}</label>
-              <div className="alert-input-group">
-                <input 
-                  type="number" 
-                  value={newAlertPrice} 
-                  onChange={(e) => setNewAlertPrice(e.target.value)}
-                  placeholder={t("Target Price")}
-                  className="alert-input"
-                />
-                <button onClick={handleAddAlert} className="alert-add-button">+</button>
-              </div>
-              <div className="alerts-list">
-                {alerts.filter(a => a.symbol === currentSymbol && a.currency === currency).map(alert => (
-                  <div key={alert.id} className={`alert-item ${!alert.active ? 'inactive' : ''}`}>
-                    <span>
-                      {alert.direction === "above" ? "↑" : "↓"} {alert.targetPrice} {currencySymbols[alert.currency as Currency]}
-                    </span>
-                    <button onClick={() => removeAlert(alert.id)} className="alert-remove-button">×</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="settings-separator"></div>
-
-            <div className="settings-row">
-              <div className="checkbox-group">
-                <label className="settings-label">
-                  <input 
-                    type="checkbox" 
-                    checked={alwaysOnTop} 
-                    onChange={(e) => handleAlwaysOnTopChange(e.target.checked)}
-                  />
-                  {t("Always on Top")}
-                </label>
-              </div>
-
-              <div className="checkbox-group">
-                <label className="settings-label">
-                  <input 
-                    type="checkbox" 
-                    checked={autostart} 
-                    onChange={(e) => handleAutostartToggle(e.target.checked)}
-                  />
-                  {t("Launch at startup")}
-                </label>
-              </div>
-            </div>
-
-            <div className="settings-group">
-              <label className="settings-label">{t("Opacity")}: {Math.round(opacity * 100)}%</label>
-              <input 
-                type="range" 
-                min="0.2" 
-                max="1.0" 
-                step="0.05" 
-                value={opacity} 
-                onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
-                className="opacity-slider"
-              />
-            </div>
-          </div>
-
-          <div className="settings-footer">
-            <button className="about-button" onClick={openAbout}>
-              {t("About Developer")}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, [timeframe, change24h, change1w, change1m, change1y]);
 
   const chartColor = useMemo(() => {
-    if (theme === 'anime') {
-      return currentChange && currentChange >= 0 ? "#ff85b3" : "#a18cd1";
-    }
-    if (theme === 'billionaire') {
-      return currentChange && currentChange >= 0 ? "#ffd700" : "#b8860b";
-    }
-    if (theme === 'dragon') {
-      return currentChange && currentChange >= 0 ? "#ffd700" : "#ff8f00";
-    }
+    if (theme === 'anime') return currentChange && currentChange >= 0 ? "#ff85b3" : "#a18cd1";
+    if (theme === 'billionaire') return currentChange && currentChange >= 0 ? "#ffd700" : "#b8860b";
+    if (theme === 'dragon') return currentChange && currentChange >= 0 ? "#ffd700" : "#ff8f00";
     return currentChange && currentChange >= 0 ? "#22c55e" : "#ef4444";
   }, [theme, currentChange]);
 
   return (
-    <div 
-      className={`app ${theme}`} 
-      style={{ position: 'relative', opacity: isSettings ? 1 : opacity }} 
-      onContextMenu={handleContextMenu}
-      data-tauri-drag-region
-    >
+    <div className={`app ${theme}`} style={{ position: 'relative', opacity }} onContextMenu={() => invoke("show_context_menu")} data-tauri-drag-region>
       <AdBanner theme={theme} />
-      <div 
-        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none', opacity: 0.6 }}
-        data-tauri-drag-region
-      >
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none', opacity: 0.6 }} data-tauri-drag-region>
         <PriceChart data={chartData} color={chartColor} />
       </div>
       <div className="titlebar" style={{ position: 'relative', zIndex: 1 }} data-tauri-drag-region>
-        <button className="settings-button" onClick={openSettings} title={t("Settings")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
+        <div style={{ pointerEvents: 'auto' }}>
+          <button className="settings-button" onClick={(e) => { e.stopPropagation(); openSettings(); }} title={t("Settings")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
         <span className="title" data-tauri-drag-region>{t("Chibi Sats")}</span>
       </div>
       <div className="content" style={{ position: 'relative', zIndex: 1 }} data-tauri-drag-region>
@@ -780,24 +781,40 @@ function App() {
                 </div>
               </div>
             )}
-            {error && <div className="error-message" data-tauri-drag-region>{error}</div>}
           </div>
         )}
       </div>
       <div className={`timeframe-wheel-container ${currentChange && currentChange >= 0 ? 'up' : 'down'}`} onClick={handleTimeframeClick} style={{ position: 'relative', zIndex: 1 }}>
         <div className="timeframe-wheel">
           {getTimeframeWheel().map((tf, index) => (
-            <div 
-              key={tf} 
-              className={`timeframe-item ${index === 1 ? 'active' : ''}`}
-            >
-              {t(tf)}
-            </div>
+            <div key={tf} className={`timeframe-item ${index === 1 ? 'active' : ''}`}>{t(tf)}</div>
           ))}
         </div>
       </div>
     </div>
   );
+}
+
+function App() {
+  // Synchronous check for window type
+  const isSettings = useMemo(() => {
+    // 1. Check URL parameters (most reliable for direct opening)
+    if (window.location.search.includes("window=settings")) return true;
+    if (window.location.search.includes("window=settings_alt")) return true;
+    
+    // 2. Check window name (Tauri often sets this to the label)
+    if (window.name === "settings") return true;
+    if (window.name === "settings_alt") return true;
+
+    // 3. Check Tauri metadata if available
+    const tauriMetadata = (window as any).__TAURI_METADATA__;
+    if (tauriMetadata?.windowLabel === "settings") return true;
+    if (tauriMetadata?.windowLabel === "settings_alt") return true;
+
+    return false;
+  }, []);
+
+  return isSettings ? <SettingsWindow /> : <MainWindow />;
 }
 
 export default App;

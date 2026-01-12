@@ -49,7 +49,8 @@ i18n
           "Price Alerts": "Price Alerts",
           "Target Price": "Target Price",
           "Theme": "Theme",
-          "Manual Price": "Manual Price"
+          "Manual Price": "Manual Price",
+          "Use Manual Price": "Use Manual Price"
         }
       },
       ru: {
@@ -96,7 +97,8 @@ i18n
           "Price Alerts": "Уведомление о цене",
           "Target Price": "Целевая цена",
           "Theme": "Тема",
-          "Manual Price": "Ручная цена"
+          "Manual Price": "Ручная цена",
+          "Use Manual Price": "Использовать ручную цену"
         }
       }
     },
