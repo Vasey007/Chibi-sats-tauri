@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import AdBanner from "./components/AdBanner";
 
 type Timeframe = "24h" | "1w" | "1m" | "1y";
-type Theme = "light" | "dark" | "anime" | "billionaire" | "dragon" | "bender" | "casino";
+type Theme = "light" | "dark" | "anime" | "billionaire" | "dragon" | "bender" | "casino" | "lord";
 type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN";
 
 const currencySymbols: Record<Currency, string> = {
@@ -222,6 +222,7 @@ function App() {
       else if (event.payload === "theme_dragon") newTheme = "dragon";
       else if (event.payload === "theme_bender") newTheme = "bender";
       else if (event.payload === "theme_casino") newTheme = "casino";
+      else if (event.payload === "theme_lord") newTheme = "lord";
       else newTheme = "dark";
       
       setTheme(newTheme);
@@ -328,6 +329,7 @@ function App() {
       else if (newTheme === "dragon") payload = "theme_dragon";
       else if (newTheme === "bender") payload = "theme_bender";
       else if (newTheme === "casino") payload = "theme_casino";
+      else if (newTheme === "lord") payload = "theme_lord";
       
       emit("theme-changed", payload);
     };
@@ -431,6 +433,7 @@ function App() {
                    <option value="dragon">{t("Golden Dragon")}</option>
                    <option value="bender">{t("Bender")}</option>
                    <option value="casino">{t("Casino")}</option>
+                   <option value="lord">{t("Lord")}</option>
                  </select>
             </div>
 

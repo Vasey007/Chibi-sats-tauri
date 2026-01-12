@@ -211,12 +211,14 @@ body,
   filter: brightness(1.1);
 }
 
-.app.billionaire .currency-select {
+.app.billionaire .currency-select,
+.app.billionaire .theme-select {
   border-color: #3d341a;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
 }
 
-.app.billionaire .currency-select:focus {
+.app.billionaire .currency-select:focus,
+.app.billionaire .theme-select:focus {
   border-color: #ffd700;
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
 }
@@ -378,17 +380,19 @@ body,
 }
 
 .app.casino .about-button {
-  background: #e63946;
-  color: #fff;
+  background: #9b1b22; /* Темно-красный бархат */
+  color: #ffefba; /* Мягкий золотистый вместо резкого белого */
   border: 2px solid #d4af37;
   text-transform: uppercase;
   font-family: 'Impact', sans-serif;
   letter-spacing: 1px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .app.casino .about-button:hover {
-  background: #c1121f;
-  box-shadow: 0 0 15px rgba(230, 57, 70, 0.6);
+  background: #7f161b;
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(155, 27, 34, 0.6);
 }
 
 .app.casino .titlebar {
@@ -404,8 +408,104 @@ body,
   transform: translate(-50%, -50%);
   font-size: 40px;
   opacity: 0.05;
+   pointer-events: none;
+   white-space: nowrap;
+ }
+
+/* Lord Theme (The Lord of the Rings / Dark Fantasy style) */
+.app.lord {
+  --bg-color: #1a1a1a;
+  --border-color: #5c4033; /* Dark Wood / Bronze */
+  --text-color: #e0d5b1; /* Old Parchment */
+  --title-color: #8b7355;
+  --error-color: #ff4500; /* Mordor Fire */
+  --change-bg-color: rgba(45, 34, 27, 0.8);
+  --input-bg: #2d221b;
+  --input-border: #5c4033;
+  --hover-bg: #3e2f25;
+  --accent-color: #ff8c00; /* Ring Glow */
+  border: 2px solid #5c4033;
+  background-image: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(92, 64, 51, 0.3);
+}
+
+.app.lord .price-value {
+  color: #ff8c00;
+  font-family: 'Cinzel', 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 12px rgba(255, 140, 0, 0.4);
+}
+
+.app.lord .change.up {
+  color: #98fb98;
+  background: rgba(152, 251, 152, 0.1);
+  border: 1px solid rgba(152, 251, 152, 0.2);
+}
+
+.app.lord .change.down {
+  color: #ff4500;
+  background: rgba(255, 69, 0, 0.1);
+  border: 1px solid rgba(255, 69, 0, 0.2);
+}
+
+.app.lord .settings-button {
+  color: #8b7355;
+}
+
+.app.lord .timeframe-wheel-container {
+  background: rgba(26, 26, 26, 0.95);
+  border: 1px solid #5c4033;
+  border-radius: 4px;
+}
+
+.app.lord .timeframe-item.active {
+  color: #ff8c00;
+  text-shadow: 0 0 8px rgba(255, 140, 0, 0.5);
+}
+
+.app.lord .about-button {
+  background: #5c4033;
+  color: #e0d5b1;
+  font-family: serif;
+  font-style: italic;
+  border: 1px solid #8b7355;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.app.lord .about-button:hover {
+  background: #8b7355;
+  color: #1a1a1a;
+  box-shadow: 0 0 15px rgba(255, 140, 0, 0.2);
+}
+
+.app.lord .titlebar {
+  background: #2d221b;
+  border-bottom: 1px solid #5c4033;
+  font-family: 'Cinzel', serif;
+}
+
+.app.lord .currency-select,
+.app.lord .theme-select {
+  border-color: #5c4033;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b7355' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  font-family: serif;
+}
+
+.app.lord .content {
+  background: radial-gradient(circle at center, rgba(255, 140, 0, 0.03) 0%, transparent 70%);
+}
+
+.app.lord .content::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 10 L60 40 L90 40 L65 60 L75 90 L50 70 L25 90 L35 60 L10 40 L40 40 Z' fill='none' stroke='%235c4033' stroke-width='0.5' opacity='0.1'/%3E%3C/svg%3E");
   pointer-events: none;
-  white-space: nowrap;
 }
 
 .app.dragon .price > div {
@@ -571,7 +671,8 @@ body,
   letter-spacing: 0.05em;
 }
 
-.currency-select {
+.currency-select,
+.theme-select {
   width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
@@ -583,22 +684,59 @@ body,
   cursor: pointer;
   outline: none;
   appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 14px;
   transition: all 0.2s ease;
 }
 
-.app.dark .currency-select:hover {
+.currency-select:hover,
+.theme-select:hover {
   background-color: var(--hover-bg);
   border-color: var(--accent-color);
 }
 
-.app.light .currency-select {
-  --input-bg: #f1f5f9;
-  --input-border: #e2e8f0;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+.currency-select:focus,
+.theme-select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+}
+
+.app.dark .currency-select,
+.app.dark .theme-select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+.app.light .currency-select,
+.app.light .theme-select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+.app.anime .currency-select,
+.app.anime .theme-select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff85b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  border-color: #ffc9db;
+}
+
+.app.bender .currency-select,
+.app.bender .theme-select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f1c40f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  border-color: #95a5a6;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.app.casino .currency-select,
+.app.casino .theme-select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4af37' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  border: 2px solid #d4af37;
+  font-family: 'Georgia', serif;
+}
+
+.currency-select option,
+.theme-select option {
+  background-color: var(--input-bg);
+  color: var(--text-color);
 }
 
 .checkbox-group {

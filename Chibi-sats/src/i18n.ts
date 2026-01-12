@@ -44,7 +44,8 @@ i18n
           "sec": "sec",
           "min": "min",
           "Bender": "Bender",
-          "Casino": "Blackjack and hookers"
+          "Casino": "Blackjack and hookers",
+          "Lord": "The Lord"
         }
       },
       ru: {
@@ -86,7 +87,8 @@ i18n
           "sec": "сек",
           "min": "мин",
           "Bender": "Бендер",
-          "Casino": "Блэкджек и шлюхи"
+          "Casino": "Блэкджек и шлюхи",
+          "Lord": "Властелин"
         }
       }
     },
