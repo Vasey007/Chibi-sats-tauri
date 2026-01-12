@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen, emit } from "@tauri-apps/api/event";
 import { useTranslation } from "react-i18next";
 import AdBanner from "./components/AdBanner";
 
@@ -10,6 +10,15 @@ const REFRESH_INTERVAL_MS = 5000;
 
 type Timeframe = "24h" | "1w" | "1m" | "1y";
 type Theme = "light" | "dark";
+type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN";
+
+const currencySymbols: Record<Currency, string> = {
+  USD: "$",
+  EUR: "€",
+  BRL: "R$",
+  TRY: "₺",
+  PLN: "zł",
+};
 
 // Helper function to calculate percentage change
 const calculatePercentageChange = (prices: number[]): number | null => {
@@ -41,8 +50,9 @@ function App() {
   const [change1y, setChange1y] = useState<number | null>(null);
   const [chartData, setChartData] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [timeframe, setTimeframe] = useState<Timeframe>("24h");
-  const [theme, setTheme] = useState<Theme>("light"); // Default theme
+  const [timeframe, setTimeframe] = useState<Timeframe>(() => (localStorage.getItem("timeframe") as Timeframe) || "24h");
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("theme") as Theme) || "light");
+  const [currency, setCurrency] = useState<Currency>(() => (localStorage.getItem("currency") as Currency) || "USD");
   const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
 
   // Use useRef to store chart data for different timeframes
@@ -53,57 +63,62 @@ function App() {
     "1y": [],
   });
 
-  const getKlineParams = (tf: Timeframe) => {
-    switch (tf) {
-      case "24h": return { interval: "15", limit: 96 }; // 15m * 96 = 24h
-      case "1w": return { interval: "60", limit: 168 }; // 1h * 168 = 7d
-      case "1m": return { interval: "240", limit: 180 }; // 4h * 180 = 30d
-      case "1y": return { interval: "D", limit: 365 }; // 1d * 365 = 1y
-      default: return { interval: "15", limit: 96 };
-    }
-  };
-
-  // Function to fetch historical data for a given timeframe
-  const fetchHistory = async (tf: Timeframe): Promise<number[]> => {
-    try {
-      const { interval, limit } = getKlineParams(tf);
-      const response = await fetch(
-        `https://api.bybit.com/v5/market/kline?category=inverse&symbol=BTCUSD&interval=${interval}&limit=${limit}`
-      );
-      if (!response.ok) {
-        console.error(`Error fetching history for ${tf}:`, response.statusText);
-        return [];
-      }
-      const data = await response.json();
-      if (data.retCode === 0 && data.result && data.result.list) {
-        return data.result.list
-          .map((item: string[]) => parseFloat(item[4]))
-          .reverse();
-      }
-    } catch (err) {
-      console.error(`Error fetching history for ${tf}:`, err);
-    }
-    return [];
-  };
-
   useEffect(() => {
+    const getKlineParams = (tf: Timeframe) => {
+      switch (tf) {
+        case "24h": return { interval: "15", limit: 96 }; // 15m * 96 = 24h
+        case "1w": return { interval: "60", limit: 168 }; // 1h * 168 = 7d
+        case "1m": return { interval: "240", limit: 180 }; // 4h * 180 = 30d
+        case "1y": return { interval: "D", limit: 365 }; // 1d * 365 = 1y
+        default: return { interval: "15", limit: 96 };
+      }
+    };
+
+    const fetchHistory = async (tf: Timeframe): Promise<number[]> => {
+      try {
+        const { interval, limit } = getKlineParams(tf);
+        const symbol = currency === "USD" ? "BTCUSD" : `BTC${currency}`;
+        const category = currency === "USD" ? "inverse" : "spot";
+        const url = `https://api.bybit.com/v5/market/kline?category=${category}&symbol=${symbol}&interval=${interval}&limit=${limit}&t=${Date.now()}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+          console.error(`Error fetching history for ${tf}:`, response.statusText);
+          return [];
+        }
+        const data = await response.json();
+        if (data.retCode === 0 && data.result && data.result.list) {
+          return data.result.list
+            .map((item: string[]) => parseFloat(item[4]))
+            .reverse();
+        }
+      } catch (err) {
+        console.error(`Error fetching history for ${tf}:`, err);
+      }
+      return [];
+    };
+
     const fetchData = async () => {
+      console.log(`Fetching data for ${currency}...`);
       // Fetch current price and 24h change
       try {
-        const response = await fetch(
-          "https://api.bybit.com/v5/market/tickers?category=inverse&symbol=BTCUSD"
-        );
+        const symbol = currency === "USD" ? "BTCUSD" : `BTC${currency}`;
+        const category = currency === "USD" ? "inverse" : "spot";
+        const url = `https://api.bybit.com/v5/market/tickers?category=${category}&symbol=${symbol}&t=${Date.now()}`;
+        console.log(`Fetching ticker: ${url}`);
+        const response = await fetch(url);
         
         if (!response.ok) {
           throw new Error("Error loading price");
         }
 
         const data = await response.json();
+        console.log("Ticker data received:", data);
         
         if (data.retCode === 0 && data.result && data.result.list && data.result.list.length > 0) {
           const item = data.result.list[0];
-          setPriceUsd(parseFloat(item.lastPrice));
-          // Мы больше не берем процент из тикера, чтобы он не расходился с графиком
+          const newPrice = parseFloat(item.lastPrice);
+          console.log(`Setting new price: ${newPrice} ${currency}`);
+          setPriceUsd(newPrice);
           setError(null);
         } else {
           throw new Error(t("Error loading price"));
@@ -138,7 +153,7 @@ function App() {
     }, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, []); // Empty dependency array to run once on mount
+  }, [currency, t]); // Add currency to dependencies
 
   // Update chartData when timeframe changes or data is updated
   useEffect(() => {
@@ -149,7 +164,9 @@ function App() {
     // Слушаем изменение таймфрейма из нативного меню
     let unlistenPromise: Promise<() => void>;
     unlistenPromise = listen<string>("timeframe-changed", (event) => {
-      setTimeframe(event.payload as Timeframe);
+      const newTf = event.payload as Timeframe;
+      setTimeframe(newTf);
+      localStorage.setItem("timeframe", newTf);
     });
 
     return () => {
@@ -165,7 +182,9 @@ function App() {
     // Слушаем изменение темы из нативного меню
     let unlistenPromise: Promise<() => void>;
     unlistenPromise = listen<string>("theme-changed", (event) => {
-      setTheme(event.payload === "theme_light" ? "light" : "dark");
+      const newTheme = event.payload === "theme_light" ? "light" : "dark";
+      setTheme(newTheme);
+      localStorage.setItem("theme", newTheme);
     });
 
     return () => {
@@ -197,6 +216,25 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    // Слушаем изменение валюты из окна настроек
+    let unlistenPromise: Promise<() => void>;
+    unlistenPromise = listen<string>("currency-changed", (event) => {
+      console.log("Currency changed event received:", event.payload);
+      const newCurrency = event.payload as Currency;
+      setCurrency(newCurrency);
+      localStorage.setItem("currency", newCurrency);
+    });
+
+    return () => {
+      unlistenPromise.then(unlisten => {
+        if (unlisten) {
+          unlisten();
+        }
+      });
+    };
+  }, []);
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     invoke("show_context_menu");
@@ -215,14 +253,32 @@ function App() {
   const currentChange = displayChange();
 
   if (isSettings) {
+    const handleCurrencyChange = async (newCurrency: Currency) => {
+      setCurrency(newCurrency);
+      localStorage.setItem("currency", newCurrency);
+      await emit("currency-changed", newCurrency);
+    };
+
     return (
       <div className={`app ${theme} settings-window`}>
         <div className="titlebar">
           <div className="title">{t("Settings")}</div>
         </div>
         <div className="content">
-          <h2>{t("Settings")}</h2>
-          <p>{t("Coming soon...")}</p>
+          <div className="settings-group">
+            <label className="settings-label">{t("Currency")}</label>
+            <select 
+               className="currency-select"
+               value={currency}
+               onChange={(e) => handleCurrencyChange(e.target.value as Currency)}
+             >
+               <option value="USD">USD ($)</option>
+               <option value="EUR">EUR (€)</option>
+               <option value="BRL">BRL (R$)</option>
+               <option value="TRY">TRY (₺)</option>
+               <option value="PLN">PLN (zł)</option>
+             </select>
+          </div>
         </div>
       </div>
     );
@@ -257,7 +313,7 @@ function App() {
         {priceUsd !== null && (
           <div className="price" data-tauri-drag-region>
             <div data-tauri-drag-region>
-              {t("BTC")}: <span className="price-value" data-tauri-drag-region>${priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+              {t("BTC")}: <span className="price-value" data-tauri-drag-region>{currencySymbols[currency]}{priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
             </div>
             {currentChange !== null && (
               <div className={`change ${currentChange >= 0 ? "up" : "down"}`} data-tauri-drag-region>

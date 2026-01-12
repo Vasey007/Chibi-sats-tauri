@@ -11,19 +11,25 @@ export default function PriceChart({ data, color = "#f7931a" }: PriceChartProps)
     
     const min = Math.min(...data);
     const max = Math.max(...data);
-    const range = max - min || 1;
+    const range = max - min;
     
     // SVG coordinate space: 0,0 is top-left.
     // We map index to x (0..100) and value to y (100..0).
-    // Adding some padding to y so it doesn't touch edges strictly if we want
     
     const points = data.map((value, index) => {
       const x = (index / (data.length - 1)) * 100;
-      // Normalize value: (value - min) / range -> 0..1
-      // Invert for Y: 1 - normalized
-      const normalizedY = (value - min) / range;
-      // Let's use 5% padding top and bottom
-      const y = 95 - (normalizedY * 90); 
+      let y;
+      
+      if (range === 0) {
+        // If all values are the same, center the line vertically
+        y = 50;
+      } else {
+        // Normalize value: (value - min) / range -> 0..1
+        const normalizedY = (value - min) / range;
+        // Use 10% padding top and bottom for better visibility
+        y = 90 - (normalizedY * 80); 
+      }
+      
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     });
 

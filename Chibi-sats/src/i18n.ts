@@ -22,7 +22,11 @@ i18n
           "English": "English",
           "Russian": "Russian",
           "Settings": "Settings",
-          "Coming soon...": "Coming soon..."
+          "Coming soon...": "Coming soon...",
+          "Currency": "Currency",
+          "Select Currency": "Select Currency",
+          "US Dollar": "US Dollar",
+          "Euro": "Euro"
         }
       },
       ru: {
@@ -42,7 +46,11 @@ i18n
           "English": "Английский",
           "Russian": "Русский",
           "Settings": "Настройки",
-          "Coming soon...": "Скоро здесь что-то будет..."
+          "Coming soon...": "Скоро здесь что-то будет...",
+          "Currency": "Валюта",
+          "Select Currency": "Выберите валюту",
+          "US Dollar": "Доллар США",
+          "Euro": "Евро"
         }
       }
     },
