@@ -1,5 +1,5 @@
 [package]
-name = "chibi-sats-tauri"
+name = "chibi-sats"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]

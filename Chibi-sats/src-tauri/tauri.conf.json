@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "chibi-sats-tauri",
+  "productName": "Chibi Sats",
   "version": "0.1.0",
   "identifier": "com.chibi.sats",
   "build": {

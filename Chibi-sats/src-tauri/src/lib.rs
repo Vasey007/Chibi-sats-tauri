@@ -192,16 +192,27 @@ pub fn run() {
             let is_autostart_enabled = handle.autolaunch().is_enabled().unwrap_or(false);
             let autostart_item = CheckMenuItem::with_id(handle, "autostart", get_translated_string("Launch at startup"), true, is_autostart_enabled, None::<&str>)?;
 
-            // Если автозагрузка еще не включена, включаем её автоматически при первом запуске
-            if !is_autostart_enabled {
+            // Path to the marker file
+            let app_data_dir = handle.path().app_data_dir().expect("Failed to get app data directory");
+            let autostart_marker_path = app_data_dir.join("autostart_configured.marker");
+
+            // If the marker file does not exist, it's the first run or the marker was deleted
+            if !autostart_marker_path.exists() {
+                // Enable autostart and create the marker file
                 match handle.autolaunch().enable() {
                     Ok(_) => {
                         autostart_item.set_checked(true).unwrap();
+                        // Create the marker file to indicate autostart has been configured once
+                        std::fs::create_dir_all(&app_data_dir)?;
+                        std::fs::File::create(&autostart_marker_path)?;
                     },
-                    Err(_) => {},
+                    Err(e) => {
+                        eprintln!("Failed to enable autostart on first run: {}", e);
+                    },
                 }
             } else {
-                autostart_item.set_checked(true).unwrap();
+                // If marker file exists, just update the menu item based on current system status
+                autostart_item.set_checked(is_autostart_enabled).unwrap();
             }
             *AUTOSTART_MENU_ITEM.lock().unwrap() = Some(autostart_item.clone());
 
