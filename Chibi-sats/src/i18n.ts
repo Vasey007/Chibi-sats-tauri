@@ -48,7 +48,8 @@ i18n
           "Lord": "The Lord",
           "Price Alerts": "Price Alerts",
           "Target Price": "Target Price",
-          "Theme": "Theme"
+          "Theme": "Theme",
+          "Manual Price": "Manual Price"
         }
       },
       ru: {
@@ -94,7 +95,8 @@ i18n
           "Lord": "Властелин",
           "Price Alerts": "Уведомление о цене",
           "Target Price": "Целевая цена",
-          "Theme": "Тема"
+          "Theme": "Тема",
+          "Manual Price": "Ручная цена"
         }
       }
     },

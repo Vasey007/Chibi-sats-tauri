@@ -8,7 +8,7 @@ import AdBanner from "./components/AdBanner";
 
 type Timeframe = "24h" | "1w" | "1m" | "1y";
 type Theme = "light" | "dark" | "anime" | "billionaire" | "dragon" | "bender" | "casino" | "lord";
-type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN";
+type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN" | "FANTIK";
 
 interface PriceAlert {
   id: string;
@@ -25,6 +25,7 @@ const currencySymbols: Record<Currency, string> = {
   BRL: "R$",
   TRY: "₺",
   PLN: "zł",
+  FANTIK: "🍬",
 };
 
 // Helper function to calculate percentage change
@@ -115,6 +116,7 @@ function App() {
   const [opacity, setOpacity] = useState(() => parseFloat(localStorage.getItem("windowOpacity") || "1.0"));
   const [refreshInterval, setRefreshInterval] = useState(() => parseInt(localStorage.getItem("refreshInterval") || "5000"));
   const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem("currentSymbol") || "BTC");
+  const [manualFuntikPrice, setManualFuntikPrice] = useState(() => parseFloat(localStorage.getItem("manualFuntikPrice") || "100"));
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
     const saved = localStorage.getItem("priceAlerts");
     return saved ? JSON.parse(saved) : [];
@@ -156,6 +158,10 @@ function App() {
     };
 
     const fetchHistory = async (tf: Timeframe): Promise<number[]> => {
+      if (currentSymbol === "FUNTIK" && currency === "FANTIK") {
+        const { limit } = getKlineParams(tf);
+        return new Array(limit).fill(manualFuntikPrice);
+      }
       try {
         const { interval, limit } = getKlineParams(tf);
         const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
@@ -180,6 +186,48 @@ function App() {
 
     const fetchData = async () => {
       console.log(`Fetching data for ${currentSymbol}/${currency}...`);
+      
+      if (currentSymbol === "FUNTIK" && currency === "FANTIK") {
+        const newPrice = manualFuntikPrice;
+        setPriceUsd(newPrice);
+        setError(null);
+        
+        // Проверка алертов для тестовой пары
+        setAlerts(prev => {
+          let soundPlayed = false;
+          const updated = prev.map(alert => {
+            if (alert.active && alert.symbol === "FUNTIK" && alert.currency === "FANTIK") {
+              const triggered = alert.direction === "above" 
+                ? newPrice >= alert.targetPrice 
+                : newPrice <= alert.targetPrice;
+              
+              if (triggered) {
+                if (!soundPlayed) {
+                  playAlertSound();
+                  soundPlayed = true;
+                }
+                return { ...alert, active: false };
+              }
+            }
+            return alert;
+          });
+          return updated;
+        });
+
+        // Update changes and history
+        const timeframes: Timeframe[] = ["24h", "1w", "1m", "1y"];
+        for (const tf of timeframes) {
+          const prices = await fetchHistory(tf);
+          allChartData.current[tf] = prices;
+        }
+        setChange24h(0);
+        setChange1w(0);
+        setChange1m(0);
+        setChange1y(0);
+        setDataUpdatedCounter(prev => prev + 1);
+        return;
+      }
+
       // Fetch current price and 24h change
       try {
         const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
@@ -256,7 +304,7 @@ function App() {
     }, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [currency, currentSymbol, t, refreshInterval]); // Add currency, currentSymbol and refreshInterval to dependencies
+  }, [currency, currentSymbol, t, refreshInterval, manualFuntikPrice]); // Add currency, currentSymbol, refreshInterval and manualFuntikPrice to dependencies
 
   // Update chartData when timeframe changes or data is updated
   useEffect(() => {
@@ -344,6 +392,15 @@ function App() {
     let unlistenPromise: Promise<() => void>;
     unlistenPromise = listen<string>("symbol-changed", (event) => {
       setCurrentSymbol(event.payload);
+    });
+    return () => { unlistenPromise.then(u => u()); };
+  }, []);
+
+  useEffect(() => {
+    // Listen for manual price change
+    let unlistenPromise: Promise<() => void>;
+    unlistenPromise = listen<number>("manual-price-changed", (event) => {
+      setManualFuntikPrice(event.payload);
     });
     return () => { unlistenPromise.then(u => u()); };
   }, []);
@@ -443,13 +500,29 @@ function App() {
       localStorage.setItem("currentSymbol", val);
       
       // If the current currency is not supported by the new symbol, switch to USD
-      if (val === "SOL" && (currency === "TRY" || currency === "PLN")) {
+      if (val === "FUNTIK") {
+        setCurrency("FANTIK");
+        localStorage.setItem("currency", "FANTIK");
+        await emit("currency-changed", "FANTIK");
+      } else if (val === "SOL" && (currency === "TRY" || currency === "PLN" || currency === "FANTIK")) {
+        setCurrency("USD");
+        localStorage.setItem("currency", "USD");
+        await emit("currency-changed", "USD");
+      } else if (currency === "FANTIK" && val !== "FUNTIK") {
         setCurrency("USD");
         localStorage.setItem("currency", "USD");
         await emit("currency-changed", "USD");
       }
       
       await emit("symbol-changed", val);
+    };
+
+    const handleManualPriceChange = (val: string) => {
+      const price = parseFloat(val);
+      const newPrice = isNaN(price) ? 0 : price;
+      setManualFuntikPrice(newPrice);
+      localStorage.setItem("manualFuntikPrice", val);
+      emit("manual-price-changed", newPrice);
     };
 
     const openAbout = async () => {
@@ -495,6 +568,7 @@ function App() {
                   <option value="BTC">Bitcoin (BTC)</option>
                   <option value="ETH">Ethereum (ETH)</option>
                   <option value="SOL">Solana (SOL)</option>
+                  <option value="FUNTIK">Funtik (TEST)</option>
                 </select>
               </div>
 
@@ -508,7 +582,9 @@ function App() {
                   <option value="USD">USD ($)</option>
                   <option value="EUR">EUR (€)</option>
                   <option value="BRL">BRL (R$)</option>
-                  {currentSymbol !== "SOL" && (
+                  {currentSymbol === "FUNTIK" ? (
+                    <option value="FANTIK">Fantik (🍬)</option>
+                  ) : (
                     <>
                       <option value="TRY">TRY (₺)</option>
                       <option value="PLN">PLN (zł)</option>
@@ -546,6 +622,18 @@ function App() {
                   <option value="ru">{t("Russian")}</option>
                 </select>
               </div>
+
+              {currentSymbol === "FUNTIK" && (
+                <div className="settings-group">
+                  <label className="settings-label">{t("Manual Price")}</label>
+                  <input 
+                    type="number" 
+                    value={manualFuntikPrice} 
+                    onChange={(e) => handleManualPriceChange(e.target.value)}
+                    className="alert-input"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="settings-separator"></div>
