@@ -637,6 +637,29 @@ body,
   color: var(--text-color);
 }
 
+.minimize-button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--title-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+  z-index: 10;
+}
+
+.minimize-button:hover {
+  background-color: var(--change-bg-color);
+  color: var(--text-color);
+}
+
 .close-app-button {
   position: absolute;
   right: 8px;
@@ -906,20 +929,53 @@ body,
 }
 
 .settings-footer {
-  margin-top: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: var(--change-bg-color);
+  border-top: 1px solid var(--border-color);
 }
 
 .about-button {
-  padding: 12px;
-  background-color: #38bdf8;
+  padding: 10px;
+  background: var(--accent-color);
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
   width: 100%;
+}
+
+.delete-widget-stub {
+  background: transparent;
+  border: 1px dashed var(--title-color);
+  color: var(--title-color);
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.3s;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.delete-widget-stub:hover {
+  opacity: 0.8;
+  border-style: solid;
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.delete-widget-stub::before {
+  content: "☹";
+  font-size: 14px;
 }
 
 .about-button:hover {

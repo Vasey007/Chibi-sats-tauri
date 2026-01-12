@@ -94,6 +94,11 @@ fn get_autostart_status(app_handle: tauri::AppHandle) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn hide_window(window: tauri::Window) -> Result<(), String> {
+    window.hide().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn close_window(window: tauri::Window) -> Result<(), String> {
     window.close().map_err(|e| e.to_string())
 }
@@ -197,7 +202,7 @@ pub fn run() {
 
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
-        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings, open_settings_alt, open_about, set_always_on_top, exit_app, close_window, show_window])
+        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings, open_settings_alt, open_about, set_always_on_top, exit_app, close_window, show_window, hide_window])
         .setup(|app| {
             let handle = app.handle();
 

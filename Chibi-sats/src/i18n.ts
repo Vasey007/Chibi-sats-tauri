@@ -50,7 +50,9 @@ i18n
           "Target Price": "Target Price",
           "Theme": "Theme",
           "Manual Price": "Manual Price",
-          "Use Manual Price": "Use Manual Price"
+          "Use Manual Price": "Use Manual Price",
+          "Minimize": "Minimize",
+          "Delete Widget": "Delete Widget"
         }
       },
       ru: {
@@ -98,7 +100,9 @@ i18n
           "Target Price": "Целевая цена",
           "Theme": "Тема",
           "Manual Price": "Ручная цена",
-          "Use Manual Price": "Использовать ручную цену"
+          "Use Manual Price": "Использовать ручную цену",
+          "Minimize": "Свернуть",
+          "Delete Widget": "Удалить виджет"
         }
       }
     },

@@ -376,7 +376,7 @@ function SettingsWindow() {
                 <option value="BTC">Bitcoin (BTC)</option>
                 <option value="ETH">Ethereum (ETH)</option>
                 <option value="SOL">Solana (SOL)</option>
-                {/* <option value="FUNTIK">Funtik (TEST)</option> */}
+                <option value="FUNTIK">Funtik (TEST)</option>
               </select>
             </div>
             <div className="settings-group">
@@ -417,7 +417,6 @@ function SettingsWindow() {
             </div>
           </div>
           <div className="settings-separator"></div>
-          {/* 
           <div className="settings-group">
             <div className="checkbox-group">
               <label className="settings-label">
@@ -432,7 +431,6 @@ function SettingsWindow() {
             )}
           </div>
           <div className="settings-separator"></div>
-          */}
           <div className="settings-group">
             <label className="settings-label">{t("Refresh Interval")}</label>
             <select value={refreshInterval} onChange={(e) => handleRefreshIntervalChange(parseInt(e.target.value))} className="theme-select">
@@ -481,6 +479,7 @@ function SettingsWindow() {
         </div>
         <div className="settings-footer">
           <button className="about-button" onClick={() => invoke("open_about")}>{t("About Developer")}</button>
+          <button className="delete-widget-stub" onClick={() => alert("((( (placeholder)")}>{t("Delete Widget")}</button>
         </div>
       </div>
     </div>
@@ -765,6 +764,13 @@ function MainWindow() {
           </button>
         </div>
         <span className="title" data-tauri-drag-region>{t("Chibi Sats")}</span>
+        <div style={{ pointerEvents: 'auto' }}>
+          <button className="minimize-button" onClick={(e) => { e.stopPropagation(); invoke("hide_window"); }} title={t("Minimize")}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
       </div>
       <div className="content" style={{ position: 'relative', zIndex: 1 }} data-tauri-drag-region>
         {priceUsd === null && !error && <div>{t("Loading...")}</div>}
