@@ -26,20 +26,23 @@ i18n
           "Currency": "Currency",
           "Select Currency": "Select Currency",
           "US Dollar": "US Dollar",
-          "Euro": "Euro"
+          "Euro": "Euro",
+          "Themes": "Themes",
+          "Language": "Language",
+          "About Developer": "About Developer"
         }
       },
       ru: {
         translation: {
           "Chibi Sats": "Chibi Sats",
-          "BTC": "БТС",
+          "BTC": "BTC",
           "Loading...": "Загрузка...",
           "No connection to Bybit API, trying again": "Нет соединения с Bybit API, повторная попытка",
           "24 hours": "24 часа",
           "1 week": "1 неделя",
           "1 month": "1 месяц",
           "1 year": "1 год",
-          "Launch at startup": "Запускать при старте",
+          "Launch at startup": "Автозапуск",
           "Close Application": "Закрыть приложение",
           "Light": "Светлая",
           "Dark": "Темная",
@@ -50,7 +53,10 @@ i18n
           "Currency": "Валюта",
           "Select Currency": "Выберите валюту",
           "US Dollar": "Доллар США",
-          "Euro": "Евро"
+          "Euro": "Евро",
+          "Themes": "Темы",
+          "Language": "Язык",
+          "About Developer": "О разработчике"
         }
       }
     },

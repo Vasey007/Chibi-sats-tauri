@@ -54,6 +54,14 @@ function App() {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("theme") as Theme) || "light");
   const [currency, setCurrency] = useState<Currency>(() => (localStorage.getItem("currency") as Currency) || "USD");
   const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
+  const [autostart, setAutostart] = useState(false);
+
+  useEffect(() => {
+    // Получаем статус автозагрузки при запуске
+    invoke<boolean>("get_autostart_status")
+      .then(setAutostart)
+      .catch(console.error);
+  }, []);
 
   // Use useRef to store chart data for different timeframes
   const allChartData = useRef<Record<Timeframe, number[]>>({
@@ -259,25 +267,94 @@ function App() {
       await emit("currency-changed", newCurrency);
     };
 
+    const handleThemeChange = (newTheme: Theme) => {
+      setTheme(newTheme);
+      localStorage.setItem("theme", newTheme);
+      // Уведомляем основное окно, если нужно (хотя localStorage + state обычно достаточно для одного инстанса)
+      // Но у нас разные окна, так что лучше через emit
+      emit("theme-changed", newTheme === "light" ? "theme_light" : "theme_dark");
+    };
+
+    const handleLanguageChange = (lang: string) => {
+      i18n.changeLanguage(lang);
+      emit("language-changed", lang === "en" ? "lang_en" : "lang_ru");
+    };
+
+    const handleAutostartToggle = async (enable: boolean) => {
+      try {
+        await invoke("set_autostart", { enable });
+        setAutostart(enable);
+      } catch (error) {
+        console.error("Failed to set autostart:", error);
+      }
+    };
+
+    const openAbout = async () => {
+      await invoke("open_about");
+    };
+
     return (
       <div className={`app ${theme} settings-window`}>
         <div className="titlebar">
           <div className="title">{t("Settings")}</div>
         </div>
         <div className="content">
-          <div className="settings-group">
-            <label className="settings-label">{t("Currency")}</label>
-            <select 
-               className="currency-select"
-               value={currency}
-               onChange={(e) => handleCurrencyChange(e.target.value as Currency)}
-             >
-               <option value="USD">USD ($)</option>
-               <option value="EUR">EUR (€)</option>
-               <option value="BRL">BRL (R$)</option>
-               <option value="TRY">TRY (₺)</option>
-               <option value="PLN">PLN (zł)</option>
-             </select>
+          <div className="settings-grid">
+            <div className="settings-group">
+              <label className="settings-label">{t("Currency")}</label>
+              <select 
+                className="currency-select"
+                value={currency}
+                onChange={(e) => handleCurrencyChange(e.target.value as Currency)}
+              >
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="BRL">BRL (R$)</option>
+                  <option value="TRY">TRY (₺)</option>
+                  <option value="PLN">PLN (zł)</option>
+                </select>
+            </div>
+
+            <div className="settings-group">
+              <label className="settings-label">{t("Themes")}</label>
+              <select 
+                className="currency-select"
+                value={theme}
+                onChange={(e) => handleThemeChange(e.target.value as Theme)}
+              >
+                <option value="light">{t("Light")}</option>
+                <option value="dark">{t("Dark")}</option>
+              </select>
+            </div>
+
+            <div className="settings-group">
+              <label className="settings-label">{t("Language")}</label>
+              <select 
+                className="currency-select"
+                value={i18n.language.startsWith('ru') ? 'ru' : 'en'}
+                onChange={(e) => handleLanguageChange(e.target.value)}
+              >
+                <option value="en">{t("English")}</option>
+                <option value="ru">{t("Russian")}</option>
+              </select>
+            </div>
+
+            <div className="settings-group checkbox-group">
+              <label className="settings-label">
+                <input 
+                  type="checkbox" 
+                  checked={autostart} 
+                  onChange={(e) => handleAutostartToggle(e.target.checked)}
+                />
+                {t("Launch at startup")}
+              </label>
+            </div>
+          </div>
+
+          <div className="settings-footer">
+            <button className="about-button" onClick={openAbout}>
+              {t("About Developer")}
+            </button>
           </div>
         </div>
       </div>
