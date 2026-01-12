@@ -104,6 +104,34 @@ async fn get_autostart_status(app_handle: tauri::AppHandle) -> Result<bool, Stri
     Ok(status)
 }
 
+#[tauri::command]
+async fn open_settings(app_handle: tauri::AppHandle) -> Result<(), String> {
+    // Check if window already exists
+    if let Some(window) = app_handle.get_webview_window("settings") {
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let settings_window = tauri::WebviewWindowBuilder::new(
+        &app_handle,
+        "settings",
+        tauri::WebviewUrl::App("index.html?window=settings".into()),
+    )
+    .title("Settings")
+    .inner_size(400.0, 500.0)
+    .resizable(true)
+    .decorations(true)
+    .always_on_top(false)
+    .center()
+    .skip_taskbar(false)
+    .build();
+
+    match settings_window {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[tauri::command]
 fn open_external_url(app_handle: tauri::AppHandle, url: String) -> Result<(), String> {
@@ -120,7 +148,7 @@ pub fn run() {
 
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
-        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url])
+        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings])
         .setup(|app| {
             let handle = app.handle();
 

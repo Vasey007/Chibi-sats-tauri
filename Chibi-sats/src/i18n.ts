@@ -20,7 +20,9 @@ i18n
           "Light": "Light",
           "Dark": "Dark",
           "English": "English",
-          "Russian": "Russian"
+          "Russian": "Russian",
+          "Settings": "Settings",
+          "Coming soon...": "Coming soon..."
         }
       },
       ru: {
@@ -38,7 +40,9 @@ i18n
           "Light": "Светлая",
           "Dark": "Темная",
           "English": "Английский",
-          "Russian": "Русский"
+          "Russian": "Русский",
+          "Settings": "Настройки",
+          "Coming soon...": "Скоро здесь что-то будет..."
         }
       }
     },
