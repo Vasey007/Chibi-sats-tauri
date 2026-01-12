@@ -51,6 +51,24 @@ function App() {
   const [chartData, setChartData] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>(() => (localStorage.getItem("timeframe") as Timeframe) || "24h");
+  const timeframes: Timeframe[] = ["24h", "1w", "1m", "1y"];
+
+  const handleTimeframeClick = () => {
+    const currentIndex = timeframes.indexOf(timeframe);
+    const nextIndex = (currentIndex + 1) % timeframes.length;
+    const nextTimeframe = timeframes[nextIndex];
+    setTimeframe(nextTimeframe);
+    localStorage.setItem("timeframe", nextTimeframe);
+  };
+
+  const getTimeframeWheel = () => {
+    const currentIndex = timeframes.indexOf(timeframe);
+    const prevIndex = (currentIndex - 1 + timeframes.length) % timeframes.length;
+    const nextIndex = (currentIndex + 1) % timeframes.length;
+
+    return [timeframes[prevIndex], timeframes[currentIndex], timeframes[nextIndex]];
+  };
+
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("theme") as Theme) || "light");
   const [currency, setCurrency] = useState<Currency>(() => (localStorage.getItem("currency") as Currency) || "USD");
   const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
@@ -173,8 +191,10 @@ function App() {
     let unlistenPromise: Promise<() => void>;
     unlistenPromise = listen<string>("timeframe-changed", (event) => {
       const newTf = event.payload as Timeframe;
-      setTimeframe(newTf);
-      localStorage.setItem("timeframe", newTf);
+      if (timeframes.includes(newTf)) {
+        setTimeframe(newTf);
+        localStorage.setItem("timeframe", newTf);
+      }
     });
 
     return () => {
@@ -184,7 +204,7 @@ function App() {
         }
       });
     };
-  }, []);
+  }, [timeframes]);
 
   useEffect(() => {
     // Слушаем изменение темы из нативного меню
@@ -394,12 +414,26 @@ function App() {
             </div>
             {currentChange !== null && (
               <div className={`change ${currentChange >= 0 ? "up" : "down"}`} data-tauri-drag-region>
-                {currentChange >= 0 ? "▲" : "▼"} {currentChange >= 0 ? "+" : ""}{currentChange.toFixed(2)}% {timeframe}
+                <div data-tauri-drag-region>
+                  {currentChange >= 0 ? "▲" : "▼"} {currentChange >= 0 ? "+" : ""}{currentChange.toFixed(2)}%
+                </div>
               </div>
             )}
             {error && <div className="error-message" data-tauri-drag-region>{error}</div>}
           </div>
         )}
+      </div>
+      <div className={`timeframe-wheel-container ${currentChange && currentChange >= 0 ? 'up' : 'down'}`} onClick={handleTimeframeClick} style={{ position: 'relative', zIndex: 1 }}>
+        <div className="timeframe-wheel">
+          {getTimeframeWheel().map((tf, index) => (
+            <div 
+              key={tf} 
+              className={`timeframe-item ${index === 1 ? 'active' : ''}`}
+            >
+              {t(tf)}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

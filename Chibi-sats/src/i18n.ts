@@ -29,7 +29,11 @@ i18n
           "Euro": "Euro",
           "Themes": "Themes",
           "Language": "Language",
-          "About Developer": "About Developer"
+          "About Developer": "About Developer",
+          "24h": "24h",
+          "1w": "1w",
+          "1m": "1m",
+          "1y": "1y"
         }
       },
       ru: {
@@ -56,7 +60,11 @@ i18n
           "Euro": "Евро",
           "Themes": "Темы",
           "Language": "Язык",
-          "About Developer": "О разработчике"
+          "About Developer": "О разработчике",
+          "24h": "24ч",
+          "1w": "1н",
+          "1m": "1м",
+          "1y": "1г"
         }
       }
     },

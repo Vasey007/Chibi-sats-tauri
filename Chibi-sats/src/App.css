@@ -258,12 +258,109 @@ body,
 }
 
 .change {
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: default;
   margin-top: 2px;
-  padding: 2px 6px;
-  border-radius: 9999px;
   background: var(--change-bg-color);
-  font-weight: 500;
+}
+
+.timeframe-wheel-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--change-bg-color);
+  padding: 4px 8px;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  height: 26px;
+  width: fit-content;
+  min-width: 120px;
+  margin: 0 auto 12px auto;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.timeframe-wheel-container:hover {
+  border-color: var(--accent-color);
+  background: var(--hover-bg);
+}
+
+.timeframe-wheel-container:active {
+  transform: scale(0.96);
+}
+
+.app.dark .timeframe-wheel-container {
+  background: var(--change-bg-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.timeframe-wheel {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  transition: all 0.3s ease;
+}
+
+.timeframe-item {
+  font-size: 10px;
+  color: var(--title-color);
+  opacity: 0.3;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 36px;
+  text-align: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(0.85);
+  letter-spacing: 0.3px;
+}
+
+.timeframe-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  height: 12px;
+  width: 1px;
+  background-image: linear-gradient(to bottom, transparent, var(--text-color), transparent);
+  opacity: 0.15;
+  transition: opacity 0.2s ease;
+}
+
+.timeframe-item.active {
+  opacity: 1;
+  color: var(--text-color);
+  font-weight: 800;
+  font-size: 11px;
+  transform: scale(1.15);
+}
+
+.timeframe-item.active::after,
+.timeframe-item:has(+ .timeframe-item.active)::after {
+  opacity: 0;
+}
+
+.timeframe-wheel-container.up .timeframe-item.active {
+  color: #22c55e;
+  text-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+}
+
+.timeframe-wheel-container.down .timeframe-item.active {
+  color: #ef4444;
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.timeframe-wheel-container:hover .timeframe-item:not(.active) {
+  opacity: 0.6;
 }
 
 .change.up {
