@@ -36,7 +36,15 @@ i18n
           "24h": "24h",
           "1w": "1w",
           "1m": "1m",
-          "1y": "1y"
+          "1y": "1y",
+          "Always on Top": "Always on Top",
+          "Opacity": "Opacity",
+          "Refresh Interval": "Refresh Interval",
+          "Cryptocurrency": "Cryptocurrency",
+          "sec": "sec",
+          "min": "min",
+          "Bender": "Bender",
+          "Casino": "Blackjack and hookers"
         }
       },
       ru: {
@@ -70,7 +78,15 @@ i18n
           "24h": "24ч",
           "1w": "1н",
           "1m": "1м",
-          "1y": "1г"
+          "1y": "1г",
+          "Always on Top": "Поверх всех окон",
+          "Opacity": "Прозрачность",
+          "Refresh Interval": "Интервал обновления",
+          "Cryptocurrency": "Криптовалюта",
+          "sec": "сек",
+          "min": "мин",
+          "Bender": "Бендер",
+          "Casino": "Блэкджек и шлюхи"
         }
       }
     },

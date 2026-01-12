@@ -120,6 +120,14 @@ async fn open_about(app_handle: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn set_always_on_top(app_handle: tauri::AppHandle, always_on_top: bool) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        window.set_always_on_top(always_on_top).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[tauri::command]
 fn open_external_url(app_handle: tauri::AppHandle, url: String) -> Result<(), String> {
@@ -136,7 +144,7 @@ pub fn run() {
 
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
-        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings, open_about])
+        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings, open_about, set_always_on_top])
         .setup(|app| {
             let handle = app.handle();
 
@@ -155,12 +163,7 @@ pub fn run() {
                 window.set_position(PhysicalPosition::new(x, y)).unwrap();
             }
 
-            // Temporarily keep the window on top, then disable it
-            let window_clone = window.clone();
-            std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(2)); // Wait for 2 seconds
-                window_clone.set_always_on_top(false).unwrap();
-            });
+
 
             let quit = MenuItem::with_id(handle, "quit", get_translated_string("Close Widget"), true, None::<&str>)?;
             *QUIT_MENU_ITEM.lock().unwrap() = Some(quit.clone());

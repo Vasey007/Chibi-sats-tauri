@@ -6,10 +6,8 @@ import { listen, emit } from "@tauri-apps/api/event";
 import { useTranslation } from "react-i18next";
 import AdBanner from "./components/AdBanner";
 
-const REFRESH_INTERVAL_MS = 5000;
-
 type Timeframe = "24h" | "1w" | "1m" | "1y";
-type Theme = "light" | "dark" | "anime" | "billionaire" | "dragon";
+type Theme = "light" | "dark" | "anime" | "billionaire" | "dragon" | "bender" | "casino";
 type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN";
 
 const currencySymbols: Record<Currency, string> = {
@@ -73,12 +71,19 @@ function App() {
   const [currency, setCurrency] = useState<Currency>(() => (localStorage.getItem("currency") as Currency) || "USD");
   const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
   const [autostart, setAutostart] = useState(false);
+  const [alwaysOnTop, setAlwaysOnTop] = useState(() => localStorage.getItem("alwaysOnTop") === "true");
+  const [opacity, setOpacity] = useState(() => parseFloat(localStorage.getItem("windowOpacity") || "1.0"));
+  const [refreshInterval, setRefreshInterval] = useState(() => parseInt(localStorage.getItem("refreshInterval") || "5000"));
+  const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem("currentSymbol") || "BTC");
 
   useEffect(() => {
     // Получаем статус автозагрузки при запуске
     invoke<boolean>("get_autostart_status")
       .then(setAutostart)
       .catch(console.error);
+
+    // Применяем начальные настройки окна
+    invoke("set_always_on_top", { alwaysOnTop });
   }, []);
 
   // Use useRef to store chart data for different timeframes
@@ -103,7 +108,7 @@ function App() {
     const fetchHistory = async (tf: Timeframe): Promise<number[]> => {
       try {
         const { interval, limit } = getKlineParams(tf);
-        const symbol = currency === "USD" ? "BTCUSD" : `BTC${currency}`;
+        const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
         const category = currency === "USD" ? "inverse" : "spot";
         const url = `https://api.bybit.com/v5/market/kline?category=${category}&symbol=${symbol}&interval=${interval}&limit=${limit}&t=${Date.now()}`;
         const response = await fetch(url);
@@ -124,10 +129,10 @@ function App() {
     };
 
     const fetchData = async () => {
-      console.log(`Fetching data for ${currency}...`);
+      console.log(`Fetching data for ${currentSymbol}/${currency}...`);
       // Fetch current price and 24h change
       try {
-        const symbol = currency === "USD" ? "BTCUSD" : `BTC${currency}`;
+        const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
         const category = currency === "USD" ? "inverse" : "spot";
         const url = `https://api.bybit.com/v5/market/tickers?category=${category}&symbol=${symbol}&t=${Date.now()}`;
         console.log(`Fetching ticker: ${url}`);
@@ -176,10 +181,10 @@ function App() {
 
     const interval = setInterval(() => {
         fetchData(); // Fetch data periodically
-    }, REFRESH_INTERVAL_MS);
+    }, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [currency, t]); // Add currency to dependencies
+  }, [currency, currentSymbol, t, refreshInterval]); // Add currency, currentSymbol and refreshInterval to dependencies
 
   // Update chartData when timeframe changes or data is updated
   useEffect(() => {
@@ -215,6 +220,8 @@ function App() {
       else if (event.payload === "theme_anime") newTheme = "anime";
       else if (event.payload === "theme_billionaire") newTheme = "billionaire";
       else if (event.payload === "theme_dragon") newTheme = "dragon";
+      else if (event.payload === "theme_bender") newTheme = "bender";
+      else if (event.payload === "theme_casino") newTheme = "casino";
       else newTheme = "dark";
       
       setTheme(newTheme);
@@ -251,23 +258,40 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Слушаем изменение валюты из окна настроек
+    // Listen for currency change
     let unlistenPromise: Promise<() => void>;
     unlistenPromise = listen<string>("currency-changed", (event) => {
-      console.log("Currency changed event received:", event.payload);
-      const newCurrency = event.payload as Currency;
-      setCurrency(newCurrency);
-      localStorage.setItem("currency", newCurrency);
+      setCurrency(event.payload as Currency);
     });
-
-    return () => {
-      unlistenPromise.then(unlisten => {
-        if (unlisten) {
-          unlisten();
-        }
-      });
-    };
+    return () => { unlistenPromise.then(u => u()); };
   }, []);
+
+  useEffect(() => {
+    // Listen for symbol change
+    let unlistenPromise: Promise<() => void>;
+    unlistenPromise = listen<string>("symbol-changed", (event) => {
+      setCurrentSymbol(event.payload);
+    });
+    return () => { unlistenPromise.then(u => u()); };
+  }, []);
+
+  useEffect(() => {
+     // Listen for opacity change
+     let unlistenPromise: Promise<() => void>;
+     unlistenPromise = listen<number>("opacity-changed", (event) => {
+       setOpacity(event.payload);
+     });
+     return () => { unlistenPromise.then(u => u()); };
+   }, []);
+
+   useEffect(() => {
+     // Listen for refresh interval change
+     let unlistenPromise: Promise<() => void>;
+     unlistenPromise = listen<number>("refresh-interval-changed", (event) => {
+       setRefreshInterval(event.payload);
+     });
+     return () => { unlistenPromise.then(u => u()); };
+   }, []);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -302,6 +326,8 @@ function App() {
       else if (newTheme === "anime") payload = "theme_anime";
       else if (newTheme === "billionaire") payload = "theme_billionaire";
       else if (newTheme === "dragon") payload = "theme_dragon";
+      else if (newTheme === "bender") payload = "theme_bender";
+      else if (newTheme === "casino") payload = "theme_casino";
       
       emit("theme-changed", payload);
     };
@@ -320,6 +346,38 @@ function App() {
       }
     };
 
+    const handleAlwaysOnTopChange = async (checked: boolean) => {
+      setAlwaysOnTop(checked);
+      localStorage.setItem("alwaysOnTop", String(checked));
+      await invoke("set_always_on_top", { alwaysOnTop: checked });
+    };
+
+    const handleOpacityChange = async (val: number) => {
+      setOpacity(val);
+      localStorage.setItem("windowOpacity", String(val));
+      await emit("opacity-changed", val);
+    };
+
+    const handleRefreshIntervalChange = async (val: number) => {
+      setRefreshInterval(val);
+      localStorage.setItem("refreshInterval", String(val));
+      await emit("refresh-interval-changed", val);
+    };
+
+    const handleSymbolChange = async (val: string) => {
+      setCurrentSymbol(val);
+      localStorage.setItem("currentSymbol", val);
+      
+      // If the current currency is not supported by the new symbol, switch to USD
+      if (val === "SOL" && (currency === "TRY" || currency === "PLN")) {
+        setCurrency("USD");
+        localStorage.setItem("currency", "USD");
+        await emit("currency-changed", "USD");
+      }
+      
+      await emit("symbol-changed", val);
+    };
+
     const openAbout = async () => {
       await invoke("open_about");
     };
@@ -332,6 +390,19 @@ function App() {
         <div className="content">
           <div className="settings-grid">
             <div className="settings-group">
+              <label className="settings-label">{t("Cryptocurrency")}</label>
+              <select 
+                value={currentSymbol} 
+                onChange={(e) => handleSymbolChange(e.target.value)}
+                className="theme-select"
+              >
+                <option value="BTC">Bitcoin (BTC)</option>
+                <option value="ETH">Ethereum (ETH)</option>
+                <option value="SOL">Solana (SOL)</option>
+              </select>
+            </div>
+
+            <div className="settings-group">
               <label className="settings-label">{t("Currency")}</label>
               <select 
                 className="currency-select"
@@ -341,8 +412,8 @@ function App() {
                   <option value="USD">USD ($)</option>
                   <option value="EUR">EUR (€)</option>
                   <option value="BRL">BRL (R$)</option>
-                  <option value="TRY">TRY (₺)</option>
-                  <option value="PLN">PLN (zł)</option>
+                  {currentSymbol !== "SOL" && <option value="TRY">TRY (₺)</option>}
+                  {currentSymbol !== "SOL" && <option value="PLN">PLN (zł)</option>}
                 </select>
             </div>
 
@@ -358,6 +429,8 @@ function App() {
                   <option value="anime">{t("Anime")}</option>
                    <option value="billionaire">{t("Billionaire")}</option>
                    <option value="dragon">{t("Golden Dragon")}</option>
+                   <option value="bender">{t("Bender")}</option>
+                   <option value="casino">{t("Casino")}</option>
                  </select>
             </div>
 
@@ -373,12 +446,51 @@ function App() {
               </select>
             </div>
 
-            <div className="settings-group checkbox-group">
+            <div className="settings-group">
+              <label className="settings-label">{t("Refresh Interval")}</label>
+              <select 
+                value={refreshInterval} 
+                onChange={(e) => handleRefreshIntervalChange(parseInt(e.target.value))}
+                className="theme-select"
+              >
+                <option value="5000">5 {t("sec")}</option>
+                <option value="10000">10 {t("sec")}</option>
+                <option value="30000">30 {t("sec")}</option>
+                <option value="60000">1 {t("min")}</option>
+                <option value="300000">5 {t("min")}</option>
+              </select>
+            </div>
+
+            <div className="checkbox-group">
+              <label className="settings-label">
+                <input 
+                  type="checkbox" 
+                  checked={alwaysOnTop} 
+                  onChange={(e) => handleAlwaysOnTopChange(e.target.checked)}
+                />
+                {t("Always on Top")}
+              </label>
+            </div>
+
+            <div className="settings-group">
+              <label className="settings-label">{t("Opacity")}: {Math.round(opacity * 100)}%</label>
+              <input 
+                type="range" 
+                min="0.2" 
+                max="1.0" 
+                step="0.05" 
+                value={opacity} 
+                onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
+                className="opacity-slider"
+              />
+            </div>
+
+            <div className="checkbox-group">
               <label className="settings-label">
                 <input 
                   type="checkbox" 
                   checked={autostart} 
-                  onChange={(e) => handleAutostartToggle(e.target.checked)}
+                  onChange={(e) => handleAutostartChange(e.target.checked)}
                 />
                 {t("Launch at startup")}
               </label>
@@ -411,7 +523,7 @@ function App() {
   return (
     <div 
       className={`app ${theme}`} 
-      style={{ position: 'relative' }} 
+      style={{ position: 'relative', opacity: isSettings ? 1 : opacity }} 
       onContextMenu={handleContextMenu}
       data-tauri-drag-region
     >
@@ -437,7 +549,7 @@ function App() {
         {priceUsd !== null && (
           <div className="price" data-tauri-drag-region>
             <div data-tauri-drag-region>
-              {t("BTC")}: <span className="price-value" data-tauri-drag-region>{currencySymbols[currency]}{priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+              {currentSymbol}: <span className="price-value" data-tauri-drag-region>{currencySymbols[currency]}{priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
             </div>
             {currentChange !== null && (
               <div className={`change ${currentChange >= 0 ? "up" : "down"}`} data-tauri-drag-region>

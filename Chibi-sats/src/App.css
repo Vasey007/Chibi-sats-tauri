@@ -249,6 +249,165 @@ body,
   letter-spacing: 0.02em;
 }
 
+/* Bender Theme */
+.app.bender {
+  --bg-color: #2c3e50; /* Metallic Blue/Grey */
+  --border-color: #95a5a6; /* Silver */
+  --text-color: #ecf0f1; /* White Cloud */
+  --title-color: #bdc3c7;
+  --error-color: #e74c3c;
+  --change-bg-color: rgba(44, 62, 80, 0.8);
+  --input-bg: #34495e;
+  --input-border: #7f8c8d;
+  --hover-bg: #3d566e;
+  --accent-color: #f1c40f; /* Bender's eyes/antenna yellow */
+  border-width: 3px;
+  border-style: solid;
+  border-radius: 20px 20px 5px 5px; /* Robotic head shape */
+  background-image: linear-gradient(to bottom, #2c3e50 0%, #000000 100%);
+}
+
+.app.bender .price-value {
+  color: #f1c40f;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+}
+
+.app.bender .change.up {
+  color: #2ecc71;
+  background: rgba(46, 204, 113, 0.2);
+}
+
+.app.bender .change.down {
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.2);
+}
+
+.app.bender .settings-button {
+  color: #bdc3c7;
+}
+
+.app.bender .timeframe-wheel-container {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #95a5a6;
+  border-radius: 10px;
+}
+
+.app.bender .timeframe-item.active {
+  color: #f1c40f;
+  font-weight: bold;
+}
+
+.app.bender .about-button {
+  background: #95a5a6;
+  color: #2c3e50;
+  font-weight: bold;
+  border: 2px solid #bdc3c7;
+}
+
+.app.bender .about-button:hover {
+  background: #bdc3c7;
+  transform: rotate(2deg);
+}
+
+.app.bender .titlebar {
+  background: #34495e;
+  border-bottom: 2px solid #95a5a6;
+}
+
+.app.bender .content {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.05) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+}
+
+/* Casino Theme (Blackjack and hookers) */
+.app.casino {
+  --bg-color: #0a4d26; /* Casino Table Green */
+  --border-color: #d4af37; /* Gold */
+  --text-color: #ffffff;
+  --title-color: #ffcc00;
+  --error-color: #ff4d4d;
+  --change-bg-color: rgba(0, 0, 0, 0.4);
+  --input-bg: #073b1d;
+  --input-border: #d4af37;
+  --hover-bg: #0e6332;
+  --accent-color: #e63946; /* Card Red */
+  border: 4px double #d4af37;
+  background-image: radial-gradient(circle at center, #0a4d26 0%, #052b15 100%);
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5);
+}
+
+.app.casino .price-value {
+  color: #ffffff;
+  font-family: 'Georgia', serif;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.app.casino .change.up {
+  color: #2ecc71;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #2ecc71;
+}
+
+.app.casino .change.down {
+  color: #e63946;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #e63946;
+}
+
+.app.casino .settings-button {
+  color: #d4af37;
+}
+
+.app.casino .timeframe-wheel-container {
+  background: #073b1d;
+  border: 2px solid #d4af37;
+  border-radius: 8px;
+}
+
+.app.casino .timeframe-item.active {
+  color: #ffcc00;
+  text-decoration: underline;
+}
+
+.app.casino .about-button {
+  background: #e63946;
+  color: #fff;
+  border: 2px solid #d4af37;
+  text-transform: uppercase;
+  font-family: 'Impact', sans-serif;
+  letter-spacing: 1px;
+}
+
+.app.casino .about-button:hover {
+  background: #c1121f;
+  box-shadow: 0 0 15px rgba(230, 57, 70, 0.6);
+}
+
+.app.casino .titlebar {
+  background: #052b15;
+  border-bottom: 2px solid #d4af37;
+}
+
+.app.casino .content::before {
+  content: "♣ ♦ ♥ ♠";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 40px;
+  opacity: 0.05;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 .app.dragon .price > div {
   color: #ffca28;
   font-weight: 800;
@@ -463,6 +622,38 @@ body,
   height: 18px;
   cursor: pointer;
   accent-color: #38bdf8;
+}
+
+.opacity-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 3px;
+  outline: none;
+  margin: 10px 0;
+}
+
+.opacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--bg-color);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+.app.billionaire .opacity-slider::-webkit-slider-thumb {
+  background: linear-gradient(135deg, #ffd700, #b8860b);
+}
+
+.app.dragon .opacity-slider::-webkit-slider-thumb {
+  background: #ffd700;
+  border-color: #8b0000;
 }
 
 .settings-footer {
