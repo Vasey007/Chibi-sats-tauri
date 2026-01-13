@@ -212,6 +212,11 @@ function SettingsWindow() {
   }, []); // Only once on mount
 
   useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+
     // Слушаем изменение темы из нативного меню
     const unlistenTheme = listen<string>("theme-changed", (event) => {
       let newTheme: Theme;
@@ -237,6 +242,7 @@ function SettingsWindow() {
     });
 
     return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
       unlistenTheme.then(unlisten => unlisten());
       unlistenManualPrices.then(u => u());
       unlistenUseManualPrice.then(u => u());
@@ -706,6 +712,11 @@ function MainWindow() {
   }, [timeframe, dataUpdatedCounter]);
 
   useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+
     // Initialize language
     const savedLang = localStorage.getItem("language");
     if (savedLang) {
@@ -746,6 +757,7 @@ function MainWindow() {
     });
 
     return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
       unlisten1.then(u => u()); unlisten2.then(u => u()); unlisten3.then(u => u());
       unlisten4.then(u => u()); unlisten5.then(u => u()); unlisten6.then(u => u());
       unlisten7.then(u => u()); unlisten8.then(u => u()); unlisten9.then(u => u());
@@ -771,7 +783,7 @@ function MainWindow() {
   }, [theme, currentChange]);
 
   return (
-    <div className={`app ${theme}`} style={{ position: 'relative', opacity }} onContextMenu={() => invoke("show_context_menu")} data-tauri-drag-region>
+    <div className={`app ${theme}`} style={{ position: 'relative', opacity }} onContextMenu={(e) => { e.preventDefault(); invoke("show_context_menu"); }} data-tauri-drag-region>
       <AdBanner theme={theme} />
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none', opacity: 0.6 }} data-tauri-drag-region>
         <PriceChart data={chartData} color={chartColor} />

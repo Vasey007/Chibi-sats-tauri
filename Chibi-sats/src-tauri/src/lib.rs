@@ -12,6 +12,7 @@ lazy_static! {
     static ref CURRENT_LANGUAGE: Mutex<String> = Mutex::new("en".to_string());
     static ref QUIT_MENU_ITEM: Mutex<Option<MenuItem<tauri::Wry>>> = Mutex::new(None);
     static ref TRAY_ICON: Mutex<Option<TrayIcon>> = Mutex::new(None);
+    static ref TRAY_TOGGLE_ITEM: Mutex<Option<MenuItem<tauri::Wry>>> = Mutex::new(None);
 }
 
 lazy_static! {
@@ -32,6 +33,8 @@ lazy_static! {
         en_translations.insert("Bender".to_string(), "Bender".to_string());
         en_translations.insert("Casino".to_string(), "Blackjack and hookers".to_string());
         en_translations.insert("Lord".to_string(), "The Lord".to_string());
+        en_translations.insert("Minimize".to_string(), "Minimize".to_string());
+        en_translations.insert("Restore".to_string(), "Restore".to_string());
         map.insert("en".to_string(), en_translations);
 
         let mut ru_translations = std::collections::HashMap::new();
@@ -48,6 +51,8 @@ lazy_static! {
         ru_translations.insert("Bender".to_string(), "Бендер".to_string());
         ru_translations.insert("Casino".to_string(), "Блэкджек и шлюхи".to_string());
         ru_translations.insert("Lord".to_string(), "Властелин".to_string());
+        ru_translations.insert("Minimize".to_string(), "Свернуть".to_string());
+        ru_translations.insert("Restore".to_string(), "Развернуть".to_string());
         map.insert("ru".to_string(), ru_translations);
 
         map
@@ -60,6 +65,17 @@ fn get_translated_string(key: &'static str) -> &'static str {
         .and_then(|l| l.get(key))
         .map(|s| s.as_str())
         .unwrap_or(key)
+}
+
+fn update_tray_toggle_text(_app_handle: &tauri::AppHandle, is_visible: bool) {
+    if let Some(item) = TRAY_TOGGLE_ITEM.lock().unwrap().as_ref() {
+        let text = if is_visible {
+            get_translated_string("Minimize")
+        } else {
+            get_translated_string("Restore")
+        };
+        let _ = item.set_text(text);
+    }
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -95,7 +111,10 @@ fn get_autostart_status(app_handle: tauri::AppHandle) -> Result<bool, String> {
 
 #[tauri::command]
 fn hide_window(window: tauri::Window) -> Result<(), String> {
-    window.hide().map_err(|e| e.to_string())
+    let app_handle = window.app_handle().clone();
+    window.hide().map_err(|e| e.to_string())?;
+    update_tray_toggle_text(&app_handle, false);
+    Ok(())
 }
 
 #[tauri::command]
@@ -105,7 +124,10 @@ fn close_window(window: tauri::Window) -> Result<(), String> {
 
 #[tauri::command]
 fn show_window(window: tauri::Window) -> Result<(), String> {
-    window.show().map_err(|e| e.to_string())
+    let app_handle = window.app_handle().clone();
+    window.show().map_err(|e| e.to_string())?;
+    update_tray_toggle_text(&app_handle, true);
+    Ok(())
 }
 
 #[tauri::command]
@@ -280,7 +302,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
         .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings, open_settings_alt, open_about, set_always_on_top, exit_app, close_window, show_window, hide_window, uninstall_app])
         .setup(|app| {
-            let handle = app.handle();
+            let handle = app.handle().clone();
 
             // Get the main window
             let window = app.get_webview_window("main").unwrap();
@@ -299,19 +321,22 @@ pub fn run() {
 
 
 
-            let quit = MenuItem::with_id(handle, "quit", get_translated_string("Close Widget"), true, None::<&str>)?;
+            let quit = MenuItem::with_id(&handle, "quit", get_translated_string("Close Widget"), true, None::<&str>)?;
             *QUIT_MENU_ITEM.lock().unwrap() = Some(quit.clone());
 
             let menu = Menu::with_items(
-                handle,
+                &handle,
                 &[
                     &quit,
                 ],
             )?;
 
             // Tray Menu
-            let tray_settings = MenuItem::with_id(handle, "tray_settings", get_translated_string("Settings"), true, None::<&str>)?;
-            let tray_exit = MenuItem::with_id(handle, "tray_exit", get_translated_string("Exit"), true, None::<&str>)?;
+            let tray_toggle = MenuItem::with_id(&handle, "tray_toggle", get_translated_string("Minimize"), true, None::<&str>)?;
+            *TRAY_TOGGLE_ITEM.lock().unwrap() = Some(tray_toggle.clone());
+
+            let tray_settings = MenuItem::with_id(&handle, "tray_settings", get_translated_string("Settings"), true, None::<&str>)?;
+            let tray_exit = MenuItem::with_id(&handle, "tray_exit", get_translated_string("Exit"), true, None::<&str>)?;
             
             // Listen for request to open settings from the gear icon (frontend event)
             let handle_clone = handle.clone();
@@ -319,17 +344,17 @@ pub fn run() {
                 let _ = open_settings(handle_clone.clone());
             });
 
-            let theme_light = MenuItem::with_id(handle, "theme_light", get_translated_string("Light"), true, None::<&str>)?;
-            let theme_dark = MenuItem::with_id(handle, "theme_dark", get_translated_string("Dark"), true, None::<&str>)?;
-            let theme_anime = MenuItem::with_id(handle, "theme_anime", get_translated_string("Anime"), true, None::<&str>)?;
-            let theme_billionaire = MenuItem::with_id(handle, "theme_billionaire", get_translated_string("Billionaire"), true, None::<&str>)?;
-            let theme_dragon = MenuItem::with_id(handle, "theme_dragon", get_translated_string("Golden Dragon"), true, None::<&str>)?;
-            let theme_bender = MenuItem::with_id(handle, "theme_bender", get_translated_string("Bender"), true, None::<&str>)?;
-            let theme_casino = MenuItem::with_id(handle, "theme_casino", get_translated_string("Casino"), true, None::<&str>)?;
-            let theme_lord = MenuItem::with_id(handle, "theme_lord", get_translated_string("Lord"), true, None::<&str>)?;
+            let theme_light = MenuItem::with_id(&handle, "theme_light", get_translated_string("Light"), true, None::<&str>)?;
+            let theme_dark = MenuItem::with_id(&handle, "theme_dark", get_translated_string("Dark"), true, None::<&str>)?;
+            let theme_anime = MenuItem::with_id(&handle, "theme_anime", get_translated_string("Anime"), true, None::<&str>)?;
+            let theme_billionaire = MenuItem::with_id(&handle, "theme_billionaire", get_translated_string("Billionaire"), true, None::<&str>)?;
+            let theme_dragon = MenuItem::with_id(&handle, "theme_dragon", get_translated_string("Golden Dragon"), true, None::<&str>)?;
+            let theme_bender = MenuItem::with_id(&handle, "theme_bender", get_translated_string("Bender"), true, None::<&str>)?;
+            let theme_casino = MenuItem::with_id(&handle, "theme_casino", get_translated_string("Casino"), true, None::<&str>)?;
+            let theme_lord = MenuItem::with_id(&handle, "theme_lord", get_translated_string("Lord"), true, None::<&str>)?;
 
             let themes_submenu = Submenu::with_items(
-                handle,
+                &handle,
                 get_translated_string("Themes"),
                 true,
                 &[
@@ -339,11 +364,13 @@ pub fn run() {
             )?;
 
             let tray_menu = Menu::with_items(
-                handle,
+                &handle,
                 &[
+                    &tray_toggle,
+                    &PredefinedMenuItem::separator(&handle)?,
                     &tray_settings,
                     &themes_submenu,
-                    &PredefinedMenuItem::separator(handle)?,
+                    &PredefinedMenuItem::separator(&handle)?,
                     &tray_exit,
                 ]
             )?;
@@ -358,11 +385,25 @@ pub fn run() {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
                             let _ = window.set_focus();
+                            update_tray_toggle_text(app, true);
                         }
                     }
                 })
                 .on_menu_event(move |app_handle: &tauri::AppHandle, event| {
                     match event.id.as_ref() {
+                        "tray_toggle" => {
+                            if let Some(window) = app_handle.get_webview_window("main") {
+                                let is_visible = window.is_visible().unwrap_or(false);
+                                if is_visible {
+                                    let _ = window.hide();
+                                    update_tray_toggle_text(app_handle, false);
+                                } else {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                    update_tray_toggle_text(app_handle, true);
+                                }
+                            }
+                        }
                         "tray_settings" => {
                             let _ = open_settings(app_handle.clone());
                         }
@@ -380,6 +421,7 @@ pub fn run() {
             *TRAY_ICON.lock().unwrap() = Some(tray);
 
             // Listen for language changes from the frontend to update Rust state and menu
+            let handle_clone = handle.clone();
             handle.listen("language-changed", move |event: tauri::Event| {
                 let lang_id = event.payload().trim_matches('"');
                 let new_lang = if lang_id == "lang_en" { "en" } else { "ru" };
@@ -390,6 +432,20 @@ pub fn run() {
 
                 if let Some(quit) = QUIT_MENU_ITEM.lock().unwrap().as_ref() {
                     let _ = quit.set_text(get_translated_string("Close Widget"));
+                }
+
+                if let Some(item) = TRAY_TOGGLE_ITEM.lock().unwrap().as_ref() {
+                    let is_visible = if let Some(window) = handle_clone.get_webview_window("main") {
+                        window.is_visible().unwrap_or(true)
+                    } else {
+                        true
+                    };
+                    let text = if is_visible {
+                        get_translated_string("Minimize")
+                    } else {
+                        get_translated_string("Restore")
+                    };
+                    let _ = item.set_text(text);
                 }
             });
 
