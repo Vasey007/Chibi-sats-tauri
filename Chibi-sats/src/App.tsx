@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useTranslation } from 'react-i18next';
 import "./App.css";
 import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
-import { useTranslation } from "react-i18next";
 import AdBanner from "./components/AdBanner";
 
 type Timeframe = "24h" | "1w" | "1m" | "1y";
@@ -493,7 +493,7 @@ function SettingsWindow() {
           </div>
         </div>
         <div className="settings-footer">
-          <button className="about-button" onClick={() => invoke("open_about")}>{t("About Developer")}</button>
+          <button className="about-button" onClick={() => emit("request-open-about")}>{t("About Developer")}</button>
           <button className="delete-widget-stub" onClick={() => setShowDeleteConfirm(true)}>{t("Delete Widget")}</button>
         </div>
 
@@ -854,7 +854,91 @@ function App() {
     return false;
   }, []);
 
-  return isSettings ? <SettingsWindow /> : <MainWindow />;
+  return isSettings ? <SettingsWindow /> : (window.location.search.includes("window=about") ? <AboutWindow /> : <MainWindow />);
+}
+
+function AboutWindow() {
+  const { t, i18n } = useTranslation();
+
+  useEffect(() => {
+    // CRITICAL: Show window only after React has finished first render
+    setTimeout(() => {
+      invoke("show_window").catch(console.error);
+    }, 150);
+  }, []);
+
+  const openExternal = (url: string) => {
+    invoke('open_external_url', { url });
+  };
+
+  const isRu = i18n.language.startsWith('ru');
+
+  return (
+    <div style={{
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      backgroundColor: '#f0f2f5',
+      color: '#1c1e21',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100vh',
+      margin: 0,
+      padding: '20px',
+      textAlign: 'center'
+    }}>
+      <div style={{
+        background: 'white',
+        padding: '30px',
+        borderRadius: '12px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        maxWidth: '340px',
+        width: '100%'
+      }}>
+        <h1 style={{ fontSize: '22px', marginBottom: '20px', color: '#000' }}>
+          {isRu ? 'Об авторе' : 'About Developer'}
+        </h1>
+        <p style={{ fontSize: '15px', lineHeight: '1.6', margin: '10px 0' }}>
+          {isRu ? 'Автор' : 'Author'}: <strong>{isRu ? 'Василий Непытаев' : 'Vasily Nepytaev'}</strong>
+        </p>
+        <p style={{ fontSize: '15px', lineHeight: '1.6', margin: '10px 0' }}>
+          {isRu ? 'Год создания' : 'Year of creation'}: <strong>2026</strong>
+        </p>
+        <div style={{ marginTop: '15px' }}>
+          <p style={{ margin: '10px 0' }}>{isRu ? 'Контакты' : 'Contacts'}:</p>
+          <div style={{ display: 'block', margin: '5px 0', color: '#1c1e21' }}>
+            <span>Telegram: </span>
+            <a 
+              href="#" 
+              onClick={(e) => { e.preventDefault(); openExternal('https://t.me/Newpepol'); }}
+              style={{ color: '#0066cc', fontWeight: 'bold', textDecoration: 'none' }}
+            >
+              @Newpepol
+            </a>
+          </div>
+          <div style={{ display: 'block', margin: '5px 0', color: '#1c1e21' }}>
+            <span>Email: </span>
+            <span style={{ fontWeight: 'bold', userSelect: 'all' }}>karta.hai@yandex.ru</span>
+          </div>
+        </div>
+        <button 
+          onClick={() => invoke('close_window')}
+          style={{
+            marginTop: '25px',
+            padding: '8px 20px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px'
+          }}
+        >
+          {isRu ? 'Закрыть' : 'Close'}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default App;

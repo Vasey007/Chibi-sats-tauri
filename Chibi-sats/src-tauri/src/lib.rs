@@ -253,26 +253,27 @@ fn uninstall_app(app_handle: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn open_about(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let lang = if *CURRENT_LANGUAGE.lock().unwrap() == "ru" { "ru" } else { "en" };
-    let about_url = format!("about.html?lang={}", lang);
-    
-    if let Some(about_window) = app_handle.get_webview_window("about") {
-        let _ = about_window.show();
-        let _ = about_window.unminimize();
-        let _ = about_window.set_focus();
-    } else {
-        let _ = tauri::WebviewWindowBuilder::new(
-            &app_handle,
-            "about",
-            tauri::WebviewUrl::App(about_url.into())
-        )
-        .title(get_translated_string("About Developer"))
-        .inner_size(400.0, 350.0)
-        .resizable(false)
-        .always_on_top(true)
-        .decorations(true)
-        .build();
-    }
+    let handle_clone = app_handle.clone();
+    let _ = handle_clone.clone().run_on_main_thread(move || {
+        if let Some(about_window) = handle_clone.get_webview_window("about") {
+            let _ = about_window.show();
+            let _ = about_window.unminimize();
+            let _ = about_window.set_focus();
+        } else {
+            let _ = tauri::WebviewWindowBuilder::new(
+                &handle_clone,
+                "about",
+                tauri::WebviewUrl::App("index.html?window=about".into())
+            )
+            .title(get_translated_string("About Developer"))
+            .inner_size(400.0, 350.0)
+            .resizable(false)
+            .always_on_top(true)
+            .decorations(true)
+            .visible(false) // Show only when React is ready
+            .build();
+        }
+    });
     Ok(())
 }
 
@@ -342,6 +343,11 @@ pub fn run() {
             let handle_clone = handle.clone();
             handle.listen("request-open-settings", move |_| {
                 let _ = open_settings(handle_clone.clone());
+            });
+
+            let handle_clone_about = handle.clone();
+            handle.listen("request-open-about", move |_| {
+                let _ = open_about(handle_clone_about.clone());
             });
 
             let theme_light = MenuItem::with_id(&handle, "theme_light", get_translated_string("Light"), true, None::<&str>)?;
