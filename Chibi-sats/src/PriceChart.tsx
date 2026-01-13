@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { calculateSvgPaths } from "./utils";
 
 interface PriceChartProps {
   data: number[];
@@ -6,42 +7,7 @@ interface PriceChartProps {
 }
 
 export default function PriceChart({ data, color = "#f7931a" }: PriceChartProps) {
-  const { pathD, areaD } = useMemo(() => {
-    if (!data || data.length < 2) return { pathD: "", areaD: "" };
-    
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const range = max - min;
-    
-    // SVG coordinate space: 0,0 is top-left.
-    // We map index to x (0..100) and value to y (100..0).
-    
-    const points = data.map((value, index) => {
-      const x = (index / (data.length - 1)) * 100;
-      let y;
-      
-      if (range === 0) {
-        // If all values are the same, center the line vertically
-        y = 50;
-      } else {
-        // Normalize value: (value - min) / range -> 0..1
-        const normalizedY = (value - min) / range;
-        // Use 10% padding top and bottom for better visibility
-        y = 90 - (normalizedY * 80); 
-      }
-      
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    });
-
-    let d = `M ${points[0]}`;
-    for (let i = 1; i < points.length; i++) {
-      d += ` L ${points[i]}`;
-    }
-    
-    const area = `${d} L 100,100 L 0,100 Z`;
-    
-    return { pathD: d, areaD: area };
-  }, [data]);
+  const { pathD, areaD } = useMemo(() => calculateSvgPaths(data), [data]);
 
   if (!data || data.length < 2) return null;
 

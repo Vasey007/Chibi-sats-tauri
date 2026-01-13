@@ -5,19 +5,11 @@ import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import AdBanner from "./components/AdBanner";
+import { calculatePercentageChange, processAlerts, formatPrice, PriceAlert } from "./utils";
 
 type Timeframe = "24h" | "1w" | "1m" | "1y";
 type Theme = "light" | "dark" | "anime" | "billionaire" | "dragon" | "bender" | "casino" | "lord";
 type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN" | "FANTIK";
-
-interface PriceAlert {
-  id: string;
-  symbol: string;
-  currency: string;
-  targetPrice: number;
-  direction: "above" | "below";
-  active: boolean;
-}
 
 const currencySymbols: Record<Currency, string> = {
   USD: "$",
@@ -28,14 +20,7 @@ const currencySymbols: Record<Currency, string> = {
   FANTIK: "🍬",
 };
 
-// Helper function to calculate percentage change
-const calculatePercentageChange = (prices: number[]): number | null => {
-  if (prices.length < 2) return null;
-  const firstPrice = prices[0];
-  const lastPrice = prices[prices.length - 1];
-  if (firstPrice === 0) return null; // Avoid division by zero
-  return ((lastPrice - firstPrice) / firstPrice) * 100;
-};
+
 
 const playAlertSound = async () => {
   console.log("Attempting to play alert sound...");
@@ -466,7 +451,7 @@ function SettingsWindow() {
             <div className="alerts-list">
               {alerts.filter(a => a.symbol === currentSymbol && a.currency === currency).map(alert => (
                 <div key={alert.id} className={`alert-item ${!alert.active ? 'inactive' : ''}`}>
-                  <span>{alert.direction === "above" ? "↑" : "↓"} {alert.targetPrice} {currencySymbols[alert.currency as Currency]}</span>
+                  <span>{alert.direction === "above" ? "↑" : "↓"} {formatPrice(alert.targetPrice, alert.currency, currencySymbols)}</span>
                   <button onClick={() => setAlerts(alerts.filter(a => a.id !== alert.id))} className="alert-remove-button">×</button>
                 </div>
               ))}
@@ -627,23 +612,12 @@ function MainWindow() {
             if (!isNaN(newPrice)) {
               setPriceUsd(newPrice);
               setError(null);
-
-              // Check alerts
               setAlerts(prev => {
-                let soundPlayed = false;
-                let changed = false;
-                const newAlerts = prev.map(alert => {
-                  if (alert.active && alert.symbol === currentSymbol && alert.currency === currency) {
-                    const triggered = alert.direction === "above" ? newPrice >= alert.targetPrice : newPrice <= alert.targetPrice;
-                    if (triggered) {
-                      if (!soundPlayed) { playAlertSound(); soundPlayed = true; }
-                      changed = true;
-                      return { ...alert, active: false };
-                    }
-                  }
-                  return alert;
-                });
-                return changed ? newAlerts : prev;
+                const { triggered, updatedAlerts } = processAlerts(prev, newPrice, currentSymbol, currency);
+                if (triggered) {
+                  playAlertSound();
+                }
+                return triggered ? updatedAlerts : prev;
               });
             }
           }
@@ -768,20 +742,11 @@ function MainWindow() {
             
             // Check alerts for current symbol
             setAlerts(prev => {
-              let soundPlayed = false;
-              let changed = false;
-              const newAlerts = prev.map(alert => {
-                if (alert.active && alert.symbol === currentSymbol && alert.currency === currency && !useManualPrice[currentSymbol]) {
-                  const triggered = alert.direction === "above" ? newPrice >= alert.targetPrice : newPrice <= alert.targetPrice;
-                  if (triggered) {
-                    if (!soundPlayed) { playAlertSound(); soundPlayed = true; }
-                    changed = true;
-                    return { ...alert, active: false };
-                  }
-                }
-                return alert;
-              });
-              return changed ? newAlerts : prev;
+              const { triggered, updatedAlerts } = processAlerts(prev, newPrice, currentSymbol, currency);
+              if (triggered) {
+                playAlertSound();
+              }
+              return triggered ? updatedAlerts : prev;
             });
           } else {
             throw new Error(t("Error loading price"));
@@ -917,7 +882,7 @@ function MainWindow() {
         {priceUsd !== null && (
           <div className="price" data-tauri-drag-region>
             <div data-tauri-drag-region>
-              {currentSymbol}: <span className="price-value" data-tauri-drag-region>{currencySymbols[currency]}{priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+              {currentSymbol}: <span className="price-value" data-tauri-drag-region>{formatPrice(priceUsd, currency, currencySymbols)}</span>
             </div>
             {currentChange !== null && (
               <div className={`change ${currentChange >= 0 ? "up" : "down"}`} data-tauri-drag-region>
