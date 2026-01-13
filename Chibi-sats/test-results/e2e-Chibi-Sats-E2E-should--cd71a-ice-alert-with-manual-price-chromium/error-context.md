@@ -1,0 +1,76 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: Settings
+    - button "×" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]: Cryptocurrency
+          - combobox [ref=e12] [cursor=pointer]:
+            - option "Bitcoin (BTC)" [selected]
+            - option "Ethereum (ETH)"
+            - option "Solana (SOL)"
+            - option "Funtik (TEST)"
+        - generic [ref=e13]:
+          - generic [ref=e14]: Currency
+          - combobox [ref=e15] [cursor=pointer]:
+            - option "USD ($)" [selected]
+            - option "EUR (€)"
+            - option "BRL (R$)"
+            - option "TRY (₺)"
+            - option "PLN (zł)"
+        - generic [ref=e16]:
+          - generic [ref=e17]: Theme
+          - combobox [ref=e18] [cursor=pointer]:
+            - option "Light"
+            - option "Dark" [selected]
+            - option "Anime"
+            - option "Billionaire"
+            - option "Golden Dragon"
+            - option "Bender"
+            - option "Blackjack and hookers"
+            - option "The Lord"
+        - generic [ref=e19]:
+          - generic [ref=e20]: Language
+          - combobox [ref=e21] [cursor=pointer]:
+            - option "English" [selected]
+            - option "Russian"
+      - generic [ref=e23]:
+        - generic [ref=e25] [cursor=pointer]:
+          - checkbox "Use Manual Price" [checked] [ref=e26]
+          - text: Use Manual Price
+        - spinbutton [active] [ref=e28]: "52000"
+      - generic [ref=e30]:
+        - generic [ref=e31]: Chart Update Interval
+        - combobox [ref=e32] [cursor=pointer]:
+          - option "5 sec" [selected]
+          - option "10 sec"
+          - option "30 sec"
+          - option "1 min"
+          - option "5 min"
+      - generic [ref=e34]:
+        - generic [ref=e35]: Price Alerts
+        - generic [ref=e36]:
+          - spinbutton [ref=e37]
+          - button "+" [ref=e38] [cursor=pointer]
+        - generic [ref=e40]:
+          - generic [ref=e41]: ↓ $51,000
+          - button "×" [ref=e42] [cursor=pointer]
+      - generic [ref=e44]:
+        - generic [ref=e46] [cursor=pointer]:
+          - checkbox "Always on Top" [ref=e47]
+          - text: Always on Top
+        - generic [ref=e49] [cursor=pointer]:
+          - checkbox "Launch at startup" [ref=e50]
+          - text: Launch at startup
+      - generic [ref=e51]:
+        - generic [ref=e52]: "Opacity: 100%"
+        - slider [ref=e53]: "1"
+    - generic [ref=e54]:
+      - button "About Developer" [ref=e55] [cursor=pointer]
+      - button "☹ Delete Widget" [ref=e56] [cursor=pointer]
+```

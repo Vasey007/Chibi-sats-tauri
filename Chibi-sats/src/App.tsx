@@ -397,7 +397,7 @@ function SettingsWindow() {
             </div>
             <div className="settings-group">
               <label className="settings-label">{t("Theme")}</label>
-              <select value={theme} onChange={(e) => handleThemeChange(e.target.value as Theme)} className="theme-select">
+              <select value={theme} onChange={(e) => handleThemeChange(e.target.value as Theme)} className="theme-select" data-testid="theme-select">
                 <option value="light">{t("Light")}</option>
                 <option value="dark">{t("Dark")}</option>
                 <option value="anime">{t("Anime")}</option>
@@ -612,13 +612,11 @@ function MainWindow() {
             if (!isNaN(newPrice)) {
               setPriceUsd(newPrice);
               setError(null);
-              setAlerts(prev => {
-                const { triggered, updatedAlerts } = processAlerts(prev, newPrice, currentSymbol, currency);
-                if (triggered) {
-                  playAlertSound();
-                }
-                return triggered ? updatedAlerts : prev;
-              });
+              const { triggered, updatedAlerts } = processAlerts(alerts, newPrice, currentSymbol, currency);
+              if (triggered) {
+                setAlerts(updatedAlerts);
+                playAlertSound();
+              }
             }
           }
 
@@ -741,13 +739,11 @@ function MainWindow() {
             setError(null);
             
             // Check alerts for current symbol
-            setAlerts(prev => {
-              const { triggered, updatedAlerts } = processAlerts(prev, newPrice, currentSymbol, currency);
-              if (triggered) {
-                playAlertSound();
-              }
-              return triggered ? updatedAlerts : prev;
-            });
+            const { triggered, updatedAlerts } = processAlerts(alerts, newPrice, currentSymbol, currency);
+            if (triggered) {
+              setAlerts(updatedAlerts);
+              playAlertSound();
+            }
           } else {
             throw new Error(t("Error loading price"));
           }
