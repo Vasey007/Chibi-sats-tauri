@@ -447,7 +447,7 @@ function SettingsWindow() {
           </div>
           <div className="settings-separator"></div>
           <div className="settings-group">
-            <label className="settings-label">{t("Refresh Interval")}</label>
+            <label className="settings-label">{t("Chart Update Interval")}</label>
             <select value={refreshInterval} onChange={(e) => handleRefreshIntervalChange(parseInt(e.target.value))} className="theme-select">
               <option value="5000">5 {t("sec")}</option>
               <option value="10000">10 {t("sec")}</option>
@@ -585,6 +585,103 @@ function MainWindow() {
   }, []);
 
   const allChartData = useRef<Record<Timeframe, number[]>>({ "24h": [], "1w": [], "1m": [], "1y": [] });
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // 1. WebSocket for real-time price updates
+  useEffect(() => {
+    if (useManualPrice[currentSymbol]) {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      return;
+    }
+
+    const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
+    const category = currency === "USD" ? "inverse" : "spot";
+    const wsUrl = `wss://stream.bybit.com/v5/public/${category}`;
+
+    const connectWs = () => {
+      if (wsRef.current) wsRef.current.close();
+
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log(`WS Connected to ${category} for ${symbol}`);
+        ws.send(JSON.stringify({
+          op: "subscribe",
+          args: [`tickers.${symbol}`]
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        const response = JSON.parse(event.data);
+        if (response.topic === `tickers.${symbol}` && response.data) {
+          const data = response.data;
+          
+          // In Bybit V5 WS tickers, lastPrice is only present if it changed
+          // or in the initial snapshot.
+          if (data.lastPrice) {
+            const newPrice = parseFloat(data.lastPrice);
+            if (!isNaN(newPrice)) {
+              setPriceUsd(newPrice);
+              setError(null);
+
+              // Check alerts
+              setAlerts(prev => {
+                let soundPlayed = false;
+                let changed = false;
+                const newAlerts = prev.map(alert => {
+                  if (alert.active && alert.symbol === currentSymbol && alert.currency === currency) {
+                    const triggered = alert.direction === "above" ? newPrice >= alert.targetPrice : newPrice <= alert.targetPrice;
+                    if (triggered) {
+                      if (!soundPlayed) { playAlertSound(); soundPlayed = true; }
+                      changed = true;
+                      return { ...alert, active: false };
+                    }
+                  }
+                  return alert;
+                });
+                return changed ? newAlerts : prev;
+              });
+            }
+          }
+
+          // Update 24h change if available
+          if (data.price24hPcnt) {
+            setChange24h(parseFloat(data.price24hPcnt) * 100);
+          }
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error("WS Error:", err);
+        // Don't set error state here as we still have polling as fallback for history
+      };
+
+      ws.onclose = () => {
+        console.log("WS Closed");
+      };
+    };
+
+    connectWs();
+
+    // Heartbeat for Bybit WS
+    const pingInterval = setInterval(() => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ op: "ping" }));
+      }
+    }, 20000);
+
+    return () => {
+      clearInterval(pingInterval);
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [currentSymbol, currency, useManualPrice, t]);
 
   useEffect(() => {
     const getKlineParams = (tf: Timeframe) => {
@@ -654,37 +751,44 @@ function MainWindow() {
       try {
         const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
         const category = currency === "USD" ? "inverse" : "spot";
-        const url = `https://api.bybit.com/v5/market/tickers?category=${category}&symbol=${symbol}&t=${Date.now()}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.retCode === 0 && data.result?.list?.[0]) {
-          const newPrice = parseFloat(data.result.list[0].lastPrice);
-          setPriceUsd(newPrice);
-          setError(null);
-          
-          // Check alerts for current symbol (if not already handled by manual logic)
-          setAlerts(prev => {
-            let soundPlayed = false;
-            let changed = false;
-            const newAlerts = prev.map(alert => {
-              if (alert.active && alert.symbol === currentSymbol && alert.currency === currency && !useManualPrice[currentSymbol]) {
-                const triggered = alert.direction === "above" ? newPrice >= alert.targetPrice : newPrice <= alert.targetPrice;
-                if (triggered) {
-                  console.log("ALERT TRIGGERED (API)!", currentSymbol, alert.targetPrice, "Current:", newPrice);
-                  if (!soundPlayed) { playAlertSound(); soundPlayed = true; }
-                  changed = true;
-                  return { ...alert, active: false };
+        
+        // Only fetch ticker via REST if WebSocket is not connected or manual price is not used
+        // This acts as a fallback and also ensures initial data is loaded
+        if (!useManualPrice[currentSymbol] && (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)) {
+          const url = `https://api.bybit.com/v5/market/tickers?category=${category}&symbol=${symbol}&t=${Date.now()}`;
+          const response = await fetch(url);
+          const data = await response.json();
+          if (data.retCode === 0 && data.result?.list?.[0]) {
+            const newPrice = parseFloat(data.result.list[0].lastPrice);
+            setPriceUsd(newPrice);
+            if (data.result.list[0].price24hPcnt) {
+              setChange24h(parseFloat(data.result.list[0].price24hPcnt) * 100);
+            }
+            setError(null);
+            
+            // Check alerts for current symbol
+            setAlerts(prev => {
+              let soundPlayed = false;
+              let changed = false;
+              const newAlerts = prev.map(alert => {
+                if (alert.active && alert.symbol === currentSymbol && alert.currency === currency && !useManualPrice[currentSymbol]) {
+                  const triggered = alert.direction === "above" ? newPrice >= alert.targetPrice : newPrice <= alert.targetPrice;
+                  if (triggered) {
+                    if (!soundPlayed) { playAlertSound(); soundPlayed = true; }
+                    changed = true;
+                    return { ...alert, active: false };
+                  }
                 }
-              }
-              return alert;
+                return alert;
+              });
+              return changed ? newAlerts : prev;
             });
-            return changed ? newAlerts : prev;
-          });
-        } else {
-          throw new Error(t("Error loading price"));
+          } else {
+            throw new Error(t("Error loading price"));
+          }
         }
       } catch (err) {
-        setError(t("No connection to Bybit API, trying again"));
+        if (!priceUsd) setError(t("No connection to Bybit API, trying again"));
       }
 
       const tfs: Timeframe[] = ["24h", "1w", "1m", "1y"];
@@ -703,7 +807,8 @@ function MainWindow() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, refreshInterval);
+    // Reduce history polling interval since price is now real-time via WS
+    const interval = setInterval(fetchData, Math.max(refreshInterval, 30000));
     return () => clearInterval(interval);
   }, [currency, currentSymbol, t, refreshInterval, manualPrices, useManualPrice]);
 
