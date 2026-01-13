@@ -978,6 +978,80 @@ body,
   font-size: 14px;
 }
 
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+  border-radius: 12px;
+}
+
+.modal-content {
+  background: var(--bg-color);
+  padding: 20px;
+  border-radius: 12px;
+  width: 80%;
+  max-width: 300px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.modal-content h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: var(--text-color);
+}
+
+.modal-content p {
+  margin: 0 0 20px 0;
+  font-size: 13px;
+  color: var(--title-color);
+  line-height: 1.4;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-button {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.modal-button.cancel {
+  background: var(--input-bg);
+  color: var(--text-color);
+  border: 1px solid var(--input-border);
+}
+
+.modal-button.cancel:hover {
+  background: var(--input-border);
+}
+
+.modal-button.confirm {
+  background: var(--error-color);
+  color: white;
+}
+
+.modal-button.confirm:hover {
+  filter: brightness(1.1);
+}
+
 .about-button:hover {
   background-color: #0ea5e9;
   transform: translateY(-1px);

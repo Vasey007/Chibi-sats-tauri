@@ -3,7 +3,6 @@ import "./App.css";
 import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useTranslation } from "react-i18next";
 import AdBanner from "./components/AdBanner";
 
@@ -100,6 +99,7 @@ function SettingsWindow() {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [newAlertPrice, setNewAlertPrice] = useState("");
   const [priceUsd, setPriceUsd] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const unlisten = listen<string>("language-changed", (e) => {
@@ -300,6 +300,15 @@ function SettingsWindow() {
     await emit("refresh-interval-changed", val);
   };
 
+  const confirmDelete = async () => {
+    try {
+      await invoke("uninstall_app");
+    } catch (err) {
+      alert(err);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   const handleSymbolChange = async (val: string) => {
     setCurrentSymbol(val);
     localStorage.setItem("currentSymbol", val);
@@ -479,8 +488,21 @@ function SettingsWindow() {
         </div>
         <div className="settings-footer">
           <button className="about-button" onClick={() => invoke("open_about")}>{t("About Developer")}</button>
-          <button className="delete-widget-stub" onClick={() => alert("((( (placeholder)")}>{t("Delete Widget")}</button>
+          <button className="delete-widget-stub" onClick={() => setShowDeleteConfirm(true)}>{t("Delete Widget")}</button>
         </div>
+
+        {showDeleteConfirm && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h3>{t("Delete Widget")}</h3>
+              <p>{t("Are you sure you want to delete the widget?")}</p>
+              <div className="modal-buttons">
+                <button className="modal-button cancel" onClick={() => setShowDeleteConfirm(false)}>{t("Cancel")}</button>
+                <button className="modal-button confirm" onClick={confirmDelete}>{t("Delete")}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -521,7 +543,7 @@ function MainWindow() {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("theme") as Theme) || "light");
   const [currency, setCurrency] = useState<Currency>(() => (localStorage.getItem("currency") as Currency) || "USD");
   const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
-  const [alwaysOnTop, setAlwaysOnTop] = useState(() => localStorage.getItem("alwaysOnTop") === "true");
+  const [alwaysOnTop] = useState(() => localStorage.getItem("alwaysOnTop") === "true");
   const [opacity, setOpacity] = useState(() => parseFloat(localStorage.getItem("windowOpacity") || "1.0"));
   const [refreshInterval, setRefreshInterval] = useState(() => parseInt(localStorage.getItem("refreshInterval") || "5000"));
   const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem("currentSymbol") || "BTC");

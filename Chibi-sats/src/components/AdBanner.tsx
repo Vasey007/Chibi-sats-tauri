@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './AdBanner.css';
 
 interface AdBannerProps {
-  theme: 'light' | 'dark' | 'anime' | 'billionaire' | 'dragon';
+  theme: 'light' | 'dark' | 'anime' | 'billionaire' | 'dragon' | 'bender' | 'casino' | 'lord';
 }
 
 const AdBanner: React.FC<AdBannerProps> = ({ theme }) => {

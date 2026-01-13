@@ -52,7 +52,10 @@ i18n
           "Manual Price": "Manual Price",
           "Use Manual Price": "Use Manual Price",
           "Minimize": "Minimize",
-          "Delete Widget": "Delete Widget"
+          "Delete Widget": "Delete Widget",
+          "Are you sure you want to delete the widget?": "Are you sure you want to delete the widget?",
+          "Cancel": "Cancel",
+          "Delete": "Delete"
         }
       },
       ru: {
@@ -102,7 +105,10 @@ i18n
           "Manual Price": "Ручная цена",
           "Use Manual Price": "Использовать ручную цену",
           "Minimize": "Свернуть",
-          "Delete Widget": "Удалить виджет"
+          "Delete Widget": "Удалить виджет",
+          "Are you sure you want to delete the widget?": "Вы уверены, что хотите удалить виджет?",
+          "Cancel": "Отмена",
+          "Delete": "Удалить"
         }
       }
     },

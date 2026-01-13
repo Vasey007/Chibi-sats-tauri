@@ -154,6 +154,82 @@ fn exit_app(app_handle: tauri::AppHandle) {
 }
 
 #[tauri::command]
+fn uninstall_app(app_handle: tauri::AppHandle) -> Result<(), String> {
+    let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let exe_dir = current_exe.parent().ok_or("Could not find executable directory")?;
+    let uninstaller_path = exe_dir.join("uninstall.exe");
+
+    if uninstaller_path.exists() {
+        // Режим установщика (NSIS)
+        std::process::Command::new(uninstaller_path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        app_handle.exit(0);
+        Ok(())
+    } else {
+        // Портативный режим (просто .exe файл)
+        // 1. Отключаем автозагрузку, если она была включена
+        let _ = set_autostart(app_handle.clone(), false);
+
+        // 2. Получаем путь к папке с данными приложения (AppData/Roaming/com.chibi.sats)
+        // В Tauri 2.0 доступ к путям через app_handle.path()
+        let data_dir = app_handle.path().app_config_dir().ok();
+        
+        // 3. Формируем команду для удаления
+        let exe_path = current_exe.to_str().ok_or("Invalid executable path")?;
+        
+        // Команда для Windows: ждем 2 секунды (чтобы процесс закрылся), удаляем exe и папку данных
+        // Используем более надежный метод через временный батник
+        let batch_content = if let Some(dir) = data_dir {
+            let dir_path = dir.to_str().unwrap_or("");
+            if !dir_path.is_empty() {
+                format!(
+                    "@echo off\ntimeout /t 2 /nobreak > NUL\nif exist \"{exe}\" del /f /q \"{exe}\"\nif exist \"{dir}\" rd /s /q \"{dir}\"\ndel \"%~f0\" & exit",
+                    exe = exe_path, dir = dir_path
+                )
+            } else {
+                format!(
+                    "@echo off\ntimeout /t 2 /nobreak > NUL\nif exist \"{exe}\" del /f /q \"{exe}\"\ndel \"%~f0\" & exit",
+                    exe = exe_path
+                )
+            }
+        } else {
+            format!(
+                "@echo off\ntimeout /t 2 /nobreak > NUL\nif exist \"{exe}\" del /f /q \"{exe}\"\ndel \"%~f0\" & exit",
+                exe = exe_path
+            )
+        };
+
+        let temp_dir = std::env::temp_dir();
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let batch_path = temp_dir.join(format!("chibi_cleanup_{}.bat", timestamp));
+        if let Err(e) = std::fs::write(&batch_path, batch_content) {
+            return Err(format!("Failed to create cleanup script: {}", e));
+        }
+
+        // Запускаем батник
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            std::process::Command::new("cmd")
+                .arg("/C")
+                .arg(&batch_path)
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
+
+        // 4. Завершаем работу приложения
+        app_handle.exit(0);
+        Ok(())
+    }
+}
+
+#[tauri::command]
 fn open_about(app_handle: tauri::AppHandle) -> Result<(), String> {
     let lang = if *CURRENT_LANGUAGE.lock().unwrap() == "ru" { "ru" } else { "en" };
     let about_url = format!("about.html?lang={}", lang);
@@ -202,7 +278,7 @@ pub fn run() {
 
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(Default::default(), None))
-        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings, open_settings_alt, open_about, set_always_on_top, exit_app, close_window, show_window, hide_window])
+        .invoke_handler(tauri::generate_handler![greet, show_context_menu, set_autostart, get_autostart_status, open_external_url, open_settings, open_settings_alt, open_about, set_always_on_top, exit_app, close_window, show_window, hide_window, uninstall_app])
         .setup(|app| {
             let handle = app.handle();
 
