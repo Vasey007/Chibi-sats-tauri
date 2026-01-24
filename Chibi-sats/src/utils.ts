@@ -7,6 +7,8 @@ export interface PriceAlert {
   active: boolean;
 }
 
+export const isTauri = () => !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
+
 /**
  * Helper function to calculate percentage change
  * @param prices Array of prices

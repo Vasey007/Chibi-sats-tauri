@@ -1,15 +1,16 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 import "./App.css";
 import PriceChart from "./PriceChart";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import AdBanner from "./components/AdBanner";
-import { calculatePercentageChange, processAlerts, formatPrice, PriceAlert } from "./utils";
+import { calculatePercentageChange, processAlerts, formatPrice, PriceAlert, isTauri } from "./utils";
+import { useLocalStorage, useTauriEvent, useTauriEmit } from "./hooks";
 
 type Timeframe = "24h" | "1w" | "1m" | "1y";
 type Theme = "light" | "dark" | "anime" | "billionaire" | "dragon" | "bender" | "casino" | "lord";
-type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN" | "FANTIK";
+type Currency = "USD" | "EUR" | "BRL" | "TRY" | "PLN"; // | "FANTIK";
 
 const currencySymbols: Record<Currency, string> = {
   USD: "$",
@@ -17,10 +18,8 @@ const currencySymbols: Record<Currency, string> = {
   BRL: "R$",
   TRY: "₺",
   PLN: "zł",
-  FANTIK: "🍬",
+  // FANTIK: "🍬",
 };
-
-
 
 const playAlertSound = async () => {
   console.log("Attempting to play alert sound...");
@@ -60,110 +59,69 @@ const playAlertSound = async () => {
 
 function SettingsWindow() {
   const { t, i18n } = useTranslation();
+  const tauriEmit = useTauriEmit();
   
-  // Safe state initialization
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [currency, setCurrency] = useState<Currency>("USD");
+  // Safe state initialization using hooks
+  const [theme, setTheme] = useLocalStorage<Theme>("theme", "dark");
+  const [currency, setCurrency] = useLocalStorage<Currency>("currency", "USD");
   const [autostart, setAutostart] = useState(false);
-  const [alwaysOnTop, setAlwaysOnTop] = useState(false);
-  const [opacity, setOpacity] = useState(1.0);
-  const [refreshInterval, setRefreshInterval] = useState(5000);
-  const [currentSymbol, setCurrentSymbol] = useState("BTC");
-  const [manualPrices, setManualPrices] = useState<Record<string, number>>({
-    BTC: 50000,
-    ETH: 3000,
-    SOL: 100,
-    FUNTIK: 100
-  });
-  const [useManualPrice, setUseManualPrice] = useState<Record<string, boolean>>({
-    BTC: false,
-    ETH: false,
-    SOL: false,
-    FUNTIK: true
-  });
-  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [alwaysOnTop, setAlwaysOnTop] = useLocalStorage("alwaysOnTop", false);
+  const [opacity, setOpacity] = useLocalStorage("windowOpacity", 1.0);
+  const [refreshInterval, setRefreshInterval] = useLocalStorage("refreshInterval", 5000);
+  const [currentSymbol, setCurrentSymbol] = useLocalStorage("currentSymbol", "BTC");
+  const [alerts, setAlerts] = useLocalStorage<PriceAlert[]>("priceAlerts", []);
+
   const [newAlertPrice, setNewAlertPrice] = useState("");
   const [priceUsd, setPriceUsd] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  useEffect(() => {
-    const unlisten = listen<string>("language-changed", (e) => {
-      i18n.changeLanguage(e.payload === "lang_en" ? "en" : "ru");
-    });
-    return () => { unlisten.then(u => u()); };
+  // Subscribe to Tauri events
+  useTauriEvent<string>("language-changed", (payload) => {
+    i18n.changeLanguage(payload === "lang_en" ? "en" : "ru");
   }, [i18n]);
 
-  // Initialize state from localStorage after mount to avoid issues with SSR or early access
+  useTauriEvent<string>("theme-changed", (payload) => {
+    const themeMap: Record<string, Theme> = {
+      theme_light: "light",
+      theme_anime: "anime",
+      theme_billionaire: "billionaire",
+      theme_dragon: "dragon",
+      theme_bender: "bender",
+      theme_casino: "casino",
+      theme_lord: "lord"
+    };
+    const newTheme = themeMap[payload] || "dark";
+    setTheme(newTheme);
+  });
+
+  useTauriEvent<PriceAlert[]>("alerts-changed", (payload) => {
+    if (JSON.stringify(payload) !== JSON.stringify(alerts)) {
+      setAlerts(payload);
+    }
+  }, [alerts]);
+
+  // Initial setup for autostart and window visibility
   useEffect(() => {
-    try {
-      // Initialize language
-      const savedLang = localStorage.getItem("language");
-      if (savedLang) {
-        i18n.changeLanguage(savedLang === "lang_en" ? "en" : "ru");
-      }
-
-      const savedTheme = localStorage.getItem("theme") as Theme;
-      if (savedTheme) setTheme(savedTheme);
-
-      const savedCurrency = localStorage.getItem("currency") as Currency;
-      if (savedCurrency) setCurrency(savedCurrency);
-
-      const savedAlwaysOnTop = localStorage.getItem("alwaysOnTop") === "true";
-      setAlwaysOnTop(savedAlwaysOnTop);
-
-      const savedOpacity = parseFloat(localStorage.getItem("windowOpacity") || "1.0");
-      setOpacity(isNaN(savedOpacity) ? 1.0 : savedOpacity);
-
-      const savedInterval = parseInt(localStorage.getItem("refreshInterval") || "5000");
-      setRefreshInterval(isNaN(savedInterval) ? 5000 : savedInterval);
-
-      const savedSymbol = localStorage.getItem("currentSymbol") || "BTC";
-      setCurrentSymbol(savedSymbol);
-
-      const savedManualPrices = localStorage.getItem("manualPrices");
-      if (savedManualPrices) {
-        try {
-          setManualPrices(JSON.parse(savedManualPrices));
-        } catch (e) { console.error("Failed to parse manualPrices:", e); }
-      }
-
-      const savedUseManualPrice = localStorage.getItem("useManualPrice");
-      if (savedUseManualPrice) {
-        try {
-          setUseManualPrice(JSON.parse(savedUseManualPrice));
-        } catch (e) { console.error("Failed to parse useManualPrice:", e); }
-      }
-
-      const savedAlerts = localStorage.getItem("priceAlerts");
-      if (savedAlerts) {
-        try {
-          setAlerts(JSON.parse(savedAlerts));
-        } catch (e) {
-          console.error("Failed to parse alerts:", e);
-        }
-      }
-      
+    if (isTauri()) {
       invoke<boolean>("get_autostart_status").then(setAutostart).catch(console.error);
-
+      
       // CRITICAL: Show window only after React has finished first render and state init
       setTimeout(() => {
         invoke("show_window").catch(console.error);
-      }, 150); // Increased delay slightly for stability
-
-    } catch (error) {
-      console.error("Error initializing settings state:", error);
-      invoke("show_window").catch(console.error);
+      }, 150);
+    }
+    
+    // Initial language setup from localStorage
+    const savedLang = localStorage.getItem("language");
+    if (savedLang) {
+      i18n.changeLanguage(savedLang === "lang_en" ? "en" : "ru");
     }
   }, []);
 
+  // Fetch current price for alert direction
   useEffect(() => {
-    // Получаем текущую цену для расчета направления алерта
     const fetchCurrentPrice = async () => {
       try {
-        if (useManualPrice[currentSymbol]) {
-          setPriceUsd(manualPrices[currentSymbol] || 0);
-          return;
-        }
         const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
         const category = currency === "USD" ? "inverse" : "spot";
         const url = `https://api.bybit.com/v5/market/tickers?category=${category}&symbol=${symbol}`;
@@ -177,96 +135,39 @@ function SettingsWindow() {
       }
     };
     fetchCurrentPrice();
-  }, [currentSymbol, currency, manualPrices, useManualPrice]);
+  }, [currentSymbol, currency]);
 
+  // Alert processing
   useEffect(() => {
-    localStorage.setItem("priceAlerts", JSON.stringify(alerts));
-    emit("alerts-changed", alerts);
-  }, [alerts]);
-
-  useEffect(() => {
-    const unlisten = listen<PriceAlert[]>("alerts-changed", (e) => {
-      setAlerts(prev => {
-        if (JSON.stringify(e.payload) !== JSON.stringify(prev)) {
-          return e.payload;
-        }
-        return prev;
-      });
-    });
-    return () => { unlisten.then(u => u()); };
-  }, []); // Only once on mount
-
-  useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-    document.addEventListener("contextmenu", handleContextMenu);
-
-    // Слушаем изменение темы из нативного меню
-    const unlistenTheme = listen<string>("theme-changed", (event) => {
-      let newTheme: Theme;
-      if (event.payload === "theme_light") newTheme = "light";
-      else if (event.payload === "theme_anime") newTheme = "anime";
-      else if (event.payload === "theme_billionaire") newTheme = "billionaire";
-      else if (event.payload === "theme_dragon") newTheme = "dragon";
-      else if (event.payload === "theme_bender") newTheme = "bender";
-      else if (event.payload === "theme_casino") newTheme = "casino";
-      else if (event.payload === "theme_lord") newTheme = "lord";
-      else newTheme = "dark";
-      
-      setTheme(newTheme);
-      localStorage.setItem("theme", newTheme);
-    });
-
-    const unlistenManualPrices = listen<Record<string, number>>("manual-prices-changed", (e) => {
-      setManualPrices(e.payload);
-    });
-
-    const unlistenUseManualPrice = listen<Record<string, boolean>>("use-manual-price-changed", (e) => {
-      setUseManualPrice(e.payload);
-    });
-
-    return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
-      unlistenTheme.then(unlisten => unlisten());
-      unlistenManualPrices.then(u => u());
-      unlistenUseManualPrice.then(u => u());
-    };
-  }, []);
-
-  useEffect(() => {
-    // Слушаем изменение языка
-    let unlistenPromise = listen<string>("language-changed", (event) => {
-      const lang = event.payload === "lang_en" ? "en" : "ru";
-      i18n.changeLanguage(lang);
-    });
-
-    return () => {
-      unlistenPromise.then(unlisten => unlisten());
-    };
-  }, []);
+    if (priceUsd !== null) {
+      const { triggered, updatedAlerts } = processAlerts(alerts, priceUsd, currentSymbol, currency);
+      if (triggered) {
+        playAlertSound();
+        setAlerts(updatedAlerts);
+      }
+    }
+  }, [priceUsd, currentSymbol, currency, alerts]);
 
   const handleCurrencyChange = async (newCurrency: Currency) => {
     setCurrency(newCurrency);
-    localStorage.setItem("currency", newCurrency);
-    await emit("currency-changed", newCurrency);
+    await tauriEmit("currency-changed", newCurrency);
   };
 
-  const handleThemeChange = (newTheme: Theme) => {
+  const handleThemeChange = async (newTheme: Theme) => {
     setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    let payload = "theme_" + newTheme;
-    emit("theme-changed", payload);
+    await tauriEmit("theme-changed", "theme_" + newTheme);
   };
 
-  const handleLanguageChange = (lang: string) => {
+  const handleLanguageChange = async (lang: string) => {
     i18n.changeLanguage(lang);
-    emit("language-changed", lang === "en" ? "lang_en" : "lang_ru");
+    await tauriEmit("language-changed", lang === "en" ? "lang_en" : "lang_ru");
   };
 
   const handleAutostartToggle = async (enable: boolean) => {
     try {
-      await invoke("set_autostart", { enable });
+      if (isTauri()) {
+        await invoke("set_autostart", { enable });
+      }
       setAutostart(enable);
     } catch (error) {
       console.error("Failed to set autostart:", error);
@@ -275,25 +176,33 @@ function SettingsWindow() {
 
   const handleAlwaysOnTopChange = async (checked: boolean) => {
     setAlwaysOnTop(checked);
-    localStorage.setItem("alwaysOnTop", String(checked));
-    await invoke("set_always_on_top", { alwaysOnTop: checked });
+    if (isTauri()) {
+      await invoke("set_always_on_top", { alwaysOnTop: checked });
+    }
   };
 
   const handleOpacityChange = async (val: number) => {
     setOpacity(val);
-    localStorage.setItem("windowOpacity", String(val));
-    await emit("opacity-changed", val);
+    if (isTauri()) {
+      await tauriEmit("opacity-changed", val);
+    }
   };
 
   const handleRefreshIntervalChange = async (val: number) => {
     setRefreshInterval(val);
-    localStorage.setItem("refreshInterval", String(val));
-    await emit("refresh-interval-changed", val);
+    if (isTauri()) {
+      await tauriEmit("refresh-interval-changed", val);
+    }
   };
 
   const confirmDelete = async () => {
     try {
-      await invoke("uninstall_app");
+      if (isTauri()) {
+        await invoke("uninstall_app");
+      } else {
+        alert("Delete app simulated");
+        setShowDeleteConfirm(false);
+      }
     } catch (err) {
       alert(err);
       setShowDeleteConfirm(false);
@@ -302,47 +211,45 @@ function SettingsWindow() {
 
   const handleSymbolChange = async (val: string) => {
     setCurrentSymbol(val);
-    localStorage.setItem("currentSymbol", val);
-    if (val === "FUNTIK") {
-      setCurrency("FANTIK");
-      localStorage.setItem("currency", "FANTIK");
-      await emit("currency-changed", "FANTIK");
-    } else if (val === "SOL" && (currency === "TRY" || currency === "PLN" || currency === "FANTIK")) {
+    if (val === "SOL" && (currency === "TRY" || currency === "PLN")) {
       setCurrency("USD");
-      localStorage.setItem("currency", "USD");
-      await emit("currency-changed", "USD");
-    } else if (currency === "FANTIK" && val !== "FUNTIK") {
-      setCurrency("USD");
-      localStorage.setItem("currency", "USD");
-      await emit("currency-changed", "USD");
-    }
-    await emit("symbol-changed", val);
+      if (isTauri()) await tauriEmit("currency-changed", "USD");
+    } 
+    if (isTauri()) await tauriEmit("symbol-changed", val);
   };
 
+  /*
   const handleManualPriceChange = (symbol: string, val: string) => {
     const price = parseFloat(val);
     const newPrice = isNaN(price) ? 0 : price;
     const newPrices = { ...manualPrices, [symbol]: newPrice };
     setManualPrices(newPrices);
     localStorage.setItem("manualPrices", JSON.stringify(newPrices));
-    emit("manual-prices-changed", newPrices);
+    if (isTauri()) {
+      emit("manual-prices-changed", newPrices);
+    }
   };
 
   const handleUseManualPriceToggle = (symbol: string, checked: boolean) => {
     const newUseManual = { ...useManualPrice, [symbol]: checked };
     setUseManualPrice(newUseManual);
     localStorage.setItem("useManualPrice", JSON.stringify(newUseManual));
-    emit("use-manual-price-changed", newUseManual);
+    if (isTauri()) {
+      emit("use-manual-price-changed", newUseManual);
+    }
   };
+  */
 
   const handleAddAlert = () => {
     const price = parseFloat(newAlertPrice);
     if (isNaN(price) || price <= 0) return;
     
     let currentPrice = priceUsd;
+    /*
     if (!currentPrice && useManualPrice[currentSymbol]) {
       currentPrice = manualPrices[currentSymbol];
     }
+    */
 
     if (!currentPrice) {
       console.warn("Cannot add alert: current price is not available yet");
@@ -357,7 +264,12 @@ function SettingsWindow() {
       direction: price > currentPrice ? "above" : "below",
       active: true
     };
-    setAlerts([...alerts, newAlert]);
+
+    if (isTauri()) {
+      tauriEmit("add-alert", newAlert);
+    } else {
+      setAlerts([...alerts, newAlert]);
+    }
     setNewAlertPrice("");
   };
 
@@ -365,7 +277,7 @@ function SettingsWindow() {
     <div className={`app ${theme} settings-window`} style={{ opacity: 1, height: '100vh', overflow: 'hidden' }}>
       <div className="settings-header" data-tauri-drag-region>
         <span data-tauri-drag-region>{t("Settings")}</span>
-        <button className="close-button" onClick={() => invoke("close_window")}>×</button>
+        <button className="close-button" onClick={() => { if (isTauri()) invoke("close_window"); }}>×</button>
       </div>
       <div className="settings-content">
         <div className="settings-scroll-area">
@@ -376,7 +288,7 @@ function SettingsWindow() {
                 <option value="BTC">Bitcoin (BTC)</option>
                 <option value="ETH">Ethereum (ETH)</option>
                 <option value="SOL">Solana (SOL)</option>
-                <option value="FUNTIK">Funtik (TEST)</option>
+                {/* <option value="FUNTIK">Funtik (TEST)</option> */}
               </select>
             </div>
             <div className="settings-group">
@@ -385,14 +297,18 @@ function SettingsWindow() {
                 <option value="USD">USD ($)</option>
                 <option value="EUR">EUR (€)</option>
                 <option value="BRL">BRL (R$)</option>
+                {/* 
                 {currentSymbol === "FUNTIK" ? (
                   <option value="FANTIK">Fantik (🍬)</option>
                 ) : (
+                */}
                   <>
                     <option value="TRY">TRY (₺)</option>
                     <option value="PLN">PLN (zł)</option>
                   </>
+                {/* 
                 )}
+                */}
               </select>
             </div>
             <div className="settings-group">
@@ -417,6 +333,7 @@ function SettingsWindow() {
             </div>
           </div>
           <div className="settings-separator"></div>
+          {/* 
           <div className="settings-group">
             <div className="checkbox-group">
               <label className="settings-label">
@@ -431,6 +348,7 @@ function SettingsWindow() {
             )}
           </div>
           <div className="settings-separator"></div>
+          */}
           <div className="settings-group">
             <label className="settings-label">{t("Chart Update Interval")}</label>
             <select value={refreshInterval} onChange={(e) => handleRefreshIntervalChange(parseInt(e.target.value))} className="theme-select">
@@ -452,7 +370,13 @@ function SettingsWindow() {
               {alerts.filter(a => a.symbol === currentSymbol && a.currency === currency).map(alert => (
                 <div key={alert.id} className={`alert-item ${!alert.active ? 'inactive' : ''}`}>
                   <span>{alert.direction === "above" ? "↑" : "↓"} {formatPrice(alert.targetPrice, alert.currency, currencySymbols)}</span>
-                  <button onClick={() => setAlerts(alerts.filter(a => a.id !== alert.id))} className="alert-remove-button">×</button>
+                  <button onClick={() => {
+                    if (isTauri()) {
+                      tauriEmit("delete-alert", alert.id);
+                    } else {
+                      setAlerts(alerts.filter(a => a.id !== alert.id));
+                    }
+                  }} className="alert-remove-button">×</button>
                 </div>
               ))}
             </div>
@@ -478,7 +402,7 @@ function SettingsWindow() {
           </div>
         </div>
         <div className="settings-footer">
-          <button className="about-button" onClick={() => emit("request-open-about")}>{t("About Developer")}</button>
+          <button className="about-button" onClick={() => { if (isTauri()) emit("request-open-about"); }}>{t("About Developer")}</button>
           <button className="delete-widget-stub" onClick={() => setShowDeleteConfirm(true)}>{t("Delete Widget")}</button>
         </div>
 
@@ -501,27 +425,37 @@ function SettingsWindow() {
 
 function MainWindow() {
   const { t, i18n } = useTranslation();
+  const tauriEmit = useTauriEmit();
+  
+  // Use hooks for state management
+  const [theme, setTheme] = useLocalStorage<Theme>("theme", "light");
+  const [currency, setCurrency] = useLocalStorage<Currency>("currency", "USD");
+  const [timeframe, setTimeframe] = useLocalStorage<Timeframe>("timeframe", "24h");
+  const [alwaysOnTop] = useLocalStorage("alwaysOnTop", false);
+  const [opacity, setOpacity] = useLocalStorage("windowOpacity", 1.0);
+  const [refreshInterval, setRefreshInterval] = useLocalStorage("refreshInterval", 5000);
+  const [currentSymbol, setCurrentSymbol] = useLocalStorage("currentSymbol", "BTC");
+  const [alerts, setAlerts] = useLocalStorage<PriceAlert[]>("priceAlerts", []);
+
   const [priceUsd, setPriceUsd] = useState<number | null>(null);
-
-  const openSettings = () => {
-    // Fire and forget event to avoid any invoke blocking/deadlocks
-    emit("request-open-settings");
-  };
-
   const [change24h, setChange24h] = useState<number | null>(null);
   const [change1w, setChange1w] = useState<number | null>(null);
   const [change1m, setChange1m] = useState<number | null>(null);
   const [change1y, setChange1y] = useState<number | null>(null);
   const [chartData, setChartData] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [timeframe, setTimeframe] = useState<Timeframe>(() => (localStorage.getItem("timeframe") as Timeframe) || "24h");
+  const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
+
   const timeframes: Timeframe[] = ["24h", "1w", "1m", "1y"];
+
+  const openSettings = useCallback(() => {
+    tauriEmit("request-open-settings");
+  }, [tauriEmit]);
 
   const handleTimeframeClick = () => {
     const currentIndex = timeframes.indexOf(timeframe);
     const nextTimeframe = timeframes[(currentIndex + 1) % timeframes.length];
     setTimeframe(nextTimeframe);
-    localStorage.setItem("timeframe", nextTimeframe);
   };
 
   const getTimeframeWheel = () => {
@@ -531,42 +465,81 @@ function MainWindow() {
     return [timeframes[prevIndex], timeframes[currentIndex], timeframes[nextIndex]];
   };
 
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("theme") as Theme) || "light");
-  const [currency, setCurrency] = useState<Currency>(() => (localStorage.getItem("currency") as Currency) || "USD");
-  const [dataUpdatedCounter, setDataUpdatedCounter] = useState(0);
-  const [alwaysOnTop] = useState(() => localStorage.getItem("alwaysOnTop") === "true");
-  const [opacity, setOpacity] = useState(() => parseFloat(localStorage.getItem("windowOpacity") || "1.0"));
-  const [refreshInterval, setRefreshInterval] = useState(() => parseInt(localStorage.getItem("refreshInterval") || "5000"));
-  const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem("currentSymbol") || "BTC");
-  const [manualPrices, setManualPrices] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem("manualPrices");
-      return saved ? JSON.parse(saved) : { BTC: 50000, ETH: 3000, SOL: 100, FUNTIK: 100 };
-    } catch (e) { return { BTC: 50000, ETH: 3000, SOL: 100, FUNTIK: 100 }; }
-  });
-  const [useManualPrice, setUseManualPrice] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem("useManualPrice");
-      return saved ? JSON.parse(saved) : { BTC: false, ETH: false, SOL: false, FUNTIK: true };
-    } catch (e) { return { BTC: false, ETH: false, SOL: false, FUNTIK: true }; }
-  });
-  const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
-    try {
-      const saved = localStorage.getItem("priceAlerts");
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error("Failed to parse alerts in MainWindow:", e);
-      return [];
-    }
+  // Subscribe to Tauri events
+  useTauriEvent<string>("theme-changed", (payload) => {
+    const themeMap: Record<string, Theme> = {
+      theme_light: "light",
+      theme_anime: "anime",
+      theme_billionaire: "billionaire",
+      theme_dragon: "dragon",
+      theme_bender: "bender",
+      theme_casino: "casino",
+      theme_lord: "lord"
+    };
+    setTheme(themeMap[payload] || "dark");
   });
 
-  useEffect(() => {
-    localStorage.setItem("priceAlerts", JSON.stringify(alerts));
-    emit("alerts-changed", alerts);
+  useTauriEvent<Currency>("currency-changed", (payload) => {
+    setCurrency(payload);
+  });
+
+  useTauriEvent<string>("language-changed", (payload) => {
+    i18n.changeLanguage(payload === "lang_en" ? "en" : "ru");
+  }, [i18n]);
+
+  useTauriEvent<number>("opacity-changed", (payload) => {
+    setOpacity(payload);
+  });
+
+  useTauriEvent<number>("refresh-interval-changed", (payload) => {
+    setRefreshInterval(payload);
+  });
+
+  useTauriEvent<string>("symbol-changed", (payload) => {
+    setCurrentSymbol(payload);
+  });
+
+  useTauriEvent<PriceAlert>("add-alert", (newAlert) => {
+    setAlerts(prev => [...prev, newAlert]);
+  }, [setAlerts]);
+
+  useTauriEvent<string>("delete-alert", (alertId) => {
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+  }, [setAlerts]);
+
+  useTauriEvent<PriceAlert[]>("alerts-changed", (payload) => {
+    if (JSON.stringify(payload) !== JSON.stringify(alerts)) {
+      setAlerts(payload);
+    }
   }, [alerts]);
 
+  // Sync alerts with other windows
   useEffect(() => {
-    invoke("set_always_on_top", { alwaysOnTop });
+    tauriEmit("alerts-changed", alerts);
+  }, [alerts, tauriEmit]);
+
+  // Initial setup
+  useEffect(() => {
+    if (isTauri()) {
+      setTimeout(() => {
+        invoke("show_window").catch(console.error);
+      }, 150);
+    }
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+    
+    // Initial language setup from localStorage
+    const savedLang = localStorage.getItem("language");
+    if (savedLang) {
+      i18n.changeLanguage(savedLang === "lang_en" ? "en" : "ru");
+    }
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+    };
   }, []);
 
   const allChartData = useRef<Record<Timeframe, number[]>>({ "24h": [], "1w": [], "1m": [], "1y": [] });
@@ -574,14 +547,6 @@ function MainWindow() {
 
   // 1. WebSocket for real-time price updates
   useEffect(() => {
-    if (useManualPrice[currentSymbol]) {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      return;
-    }
-
     const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
     const category = currency === "USD" ? "inverse" : "spot";
     const wsUrl = `wss://stream.bybit.com/v5/public/${category}`;
@@ -612,11 +577,6 @@ function MainWindow() {
             if (!isNaN(newPrice)) {
               setPriceUsd(newPrice);
               setError(null);
-              const { triggered, updatedAlerts } = processAlerts(alerts, newPrice, currentSymbol, currency);
-              if (triggered) {
-                setAlerts(updatedAlerts);
-                playAlertSound();
-              }
             }
           }
 
@@ -653,7 +613,17 @@ function MainWindow() {
         wsRef.current = null;
       }
     };
-  }, [currentSymbol, currency, useManualPrice, t]);
+  }, [currentSymbol, currency /*, useManualPrice*/, t]);
+
+  useEffect(() => {
+    if (priceUsd !== null) {
+      const { triggered, updatedAlerts } = processAlerts(alerts, priceUsd, currentSymbol, currency);
+      if (triggered) {
+        playAlertSound();
+        setAlerts(updatedAlerts);
+      }
+    }
+  }, [priceUsd, currentSymbol, currency, alerts]);
 
   useEffect(() => {
     const getKlineParams = (tf: Timeframe) => {
@@ -667,10 +637,12 @@ function MainWindow() {
     };
 
     const fetchHistory = async (tf: Timeframe): Promise<number[]> => {
+      /*
       if (useManualPrice[currentSymbol]) {
         const { limit } = getKlineParams(tf);
         return new Array(limit).fill(manualPrices[currentSymbol] || 0);
       }
+      */
       try {
         const { interval, limit } = getKlineParams(tf);
         const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
@@ -688,27 +660,8 @@ function MainWindow() {
     };
 
     const fetchData = async () => {
-      // 1. Handle alerts for all manual symbols
-      setAlerts(prev => {
-        let soundPlayed = false;
-        let changed = false;
-        const newAlerts = prev.map(alert => {
-          if (alert.active && useManualPrice[alert.symbol]) {
-            const manualPrice = manualPrices[alert.symbol];
-            const triggered = alert.direction === "above" ? manualPrice >= alert.targetPrice : manualPrice <= alert.targetPrice;
-            if (triggered) {
-              console.log("ALERT TRIGGERED (MANUAL)!", alert.symbol, alert.targetPrice, "Current:", manualPrice);
-              if (!soundPlayed) { playAlertSound(); soundPlayed = true; }
-              changed = true;
-              return { ...alert, active: false };
-            }
-          }
-          return alert;
-        });
-        return changed ? newAlerts : prev;
-      });
-
-      // 2. If current symbol is manual, just update UI and fetch history (flat line)
+      /*
+      // 1. If current symbol is manual, just update UI and fetch history (flat line)
       if (useManualPrice[currentSymbol]) {
         const newPrice = manualPrices[currentSymbol];
         setPriceUsd(newPrice);
@@ -719,14 +672,13 @@ function MainWindow() {
         setDataUpdatedCounter(prev => prev + 1);
         return;
       }
+      */
 
       try {
         const symbol = currency === "USD" ? `${currentSymbol}USD` : `${currentSymbol}${currency}`;
         const category = currency === "USD" ? "inverse" : "spot";
         
-        // Only fetch ticker via REST if WebSocket is not connected or manual price is not used
-        // This acts as a fallback and also ensures initial data is loaded
-        if (!useManualPrice[currentSymbol] && (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)) {
+        if ((!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)) {
           const url = `https://api.bybit.com/v5/market/tickers?category=${category}&symbol=${symbol}&t=${Date.now()}`;
           const response = await fetch(url);
           const data = await response.json();
@@ -737,24 +689,26 @@ function MainWindow() {
               setChange24h(parseFloat(data.result.list[0].price24hPcnt) * 100);
             }
             setError(null);
-            
-            // Check alerts for current symbol
-            const { triggered, updatedAlerts } = processAlerts(alerts, newPrice, currentSymbol, currency);
-            if (triggered) {
-              setAlerts(updatedAlerts);
-              playAlertSound();
-            }
           } else {
-            throw new Error(t("Error loading price"));
+            throw new Error("Error loading price");
           }
         }
       } catch (err) {
-        if (!priceUsd) setError(t("No connection to Bybit API, trying again"));
+        if (!priceUsd) setError("No connection to Bybit API, trying again");
       }
 
       const tfs: Timeframe[] = ["24h", "1w", "1m", "1y"];
-      for (const tf of tfs) {
-        const prices = await fetchHistory(tf);
+      
+      // Fetch all history in parallel for better performance
+      const historyResults = await Promise.all(
+        tfs.map(async (tf) => {
+          const prices = await fetchHistory(tf);
+          return { tf, prices };
+        })
+      );
+
+      // Update state and refs
+      historyResults.forEach(({ tf, prices }) => {
         allChartData.current[tf] = prices;
         const change = calculatePercentageChange(prices);
         switch (tf) {
@@ -763,7 +717,8 @@ function MainWindow() {
           case "1m": setChange1m(change); break;
           case "1y": setChange1y(change); break;
         }
-      }
+      });
+      
       setDataUpdatedCounter(prev => prev + 1);
     };
 
@@ -771,65 +726,13 @@ function MainWindow() {
     // Reduce history polling interval since price is now real-time via WS
     const interval = setInterval(fetchData, Math.max(refreshInterval, 30000));
     return () => clearInterval(interval);
-  }, [currency, currentSymbol, t, refreshInterval, manualPrices, useManualPrice]);
+  }, [currency, currentSymbol, refreshInterval]);
 
   useEffect(() => {
     setChartData(allChartData.current[timeframe]);
   }, [timeframe, dataUpdatedCounter]);
 
-  useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-    document.addEventListener("contextmenu", handleContextMenu);
 
-    // Initialize language
-    const savedLang = localStorage.getItem("language");
-    if (savedLang) {
-      i18n.changeLanguage(savedLang === "lang_en" ? "en" : "ru");
-    }
-
-    const unlisten1 = listen<string>("timeframe-changed", (e) => {
-      const newTf = e.payload as Timeframe;
-      if (timeframes.includes(newTf)) { setTimeframe(newTf); localStorage.setItem("timeframe", newTf); }
-    });
-    const unlisten2 = listen<string>("theme-changed", (e) => {
-      let newTheme: Theme = "dark";
-      if (e.payload === "theme_light") newTheme = "light";
-      else if (e.payload === "theme_anime") newTheme = "anime";
-      else if (e.payload === "theme_billionaire") newTheme = "billionaire";
-      else if (e.payload === "theme_dragon") newTheme = "dragon";
-      else if (e.payload === "theme_bender") newTheme = "bender";
-      else if (e.payload === "theme_casino") newTheme = "casino";
-      else if (e.payload === "theme_lord") newTheme = "lord";
-      setTheme(newTheme); localStorage.setItem("theme", newTheme);
-    });
-    const unlisten3 = listen<string>("language-changed", (e) => {
-      i18n.changeLanguage(e.payload === "lang_en" ? "en" : "ru");
-    });
-    const unlisten4 = listen<string>("currency-changed", (e) => setCurrency(e.payload as Currency));
-    const unlisten5 = listen<string>("symbol-changed", (e) => setCurrentSymbol(e.payload));
-    const unlisten6 = listen<Record<string, number>>("manual-prices-changed", (e) => setManualPrices(e.payload));
-    const unlisten10 = listen<Record<string, boolean>>("use-manual-price-changed", (e) => setUseManualPrice(e.payload));
-    const unlisten7 = listen<number>("opacity-changed", (e) => setOpacity(e.payload));
-    const unlisten8 = listen<number>("refresh-interval-changed", (e) => setRefreshInterval(e.payload));
-    const unlisten9 = listen<PriceAlert[]>("alerts-changed", (e) => {
-      setAlerts(prev => {
-        if (JSON.stringify(e.payload) !== JSON.stringify(prev)) {
-          return e.payload;
-        }
-        return prev;
-      });
-    });
-
-    return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
-      unlisten1.then(u => u()); unlisten2.then(u => u()); unlisten3.then(u => u());
-      unlisten4.then(u => u()); unlisten5.then(u => u()); unlisten6.then(u => u());
-      unlisten7.then(u => u()); unlisten8.then(u => u()); unlisten9.then(u => u());
-      unlisten10.then(u => u());
-    };
-  }, []); // Only on mount
 
   const currentChange = useMemo(() => {
     switch (timeframe) {
@@ -849,7 +752,7 @@ function MainWindow() {
   }, [theme, currentChange]);
 
   return (
-    <div className={`app ${theme}`} style={{ position: 'relative', opacity }} onContextMenu={(e) => { e.preventDefault(); invoke("show_context_menu"); }} data-tauri-drag-region>
+    <div className={`app ${theme}`} style={{ position: 'relative', opacity }} onContextMenu={(e) => { e.preventDefault(); if (isTauri()) invoke("show_context_menu"); }} data-tauri-drag-region>
       <AdBanner theme={theme} />
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none', opacity: 0.6 }} data-tauri-drag-region>
         <PriceChart data={chartData} color={chartColor} />
@@ -865,7 +768,7 @@ function MainWindow() {
         </div>
         <span className="title" data-tauri-drag-region>{t("Chibi Sats")}</span>
         <div style={{ pointerEvents: 'auto' }}>
-          <button className="minimize-button" onClick={(e) => { e.stopPropagation(); invoke("hide_window"); }} title={t("Minimize")}>
+          <button className="minimize-button" onClick={(e) => { e.stopPropagation(); if (isTauri()) invoke("hide_window"); }} title={t("Minimize")}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
@@ -874,7 +777,7 @@ function MainWindow() {
       </div>
       <div className="content" style={{ position: 'relative', zIndex: 1 }} data-tauri-drag-region>
         {priceUsd === null && !error && <div>{t("Loading...")}</div>}
-        {priceUsd === null && error && <div className="error">{error}</div>}
+        {priceUsd === null && error && <div className="error">{t(error)}</div>}
         {priceUsd !== null && (
           <div className="price" data-tauri-drag-region>
             <div data-tauri-drag-region>
@@ -928,13 +831,19 @@ function AboutWindow() {
 
   useEffect(() => {
     // CRITICAL: Show window only after React has finished first render
-    setTimeout(() => {
-      invoke("show_window").catch(console.error);
-    }, 150);
+    if (isTauri()) {
+      setTimeout(() => {
+        invoke("show_window").catch(console.error);
+      }, 150);
+    }
   }, []);
 
   const openExternal = (url: string) => {
-    invoke('open_external_url', { url });
+    if (isTauri()) {
+      invoke('open_external_url', { url });
+    } else {
+      window.open(url, '_blank');
+    }
   };
 
   const isRu = i18n.language.startsWith('ru');
@@ -988,7 +897,7 @@ function AboutWindow() {
           </div>
         </div>
         <button 
-          onClick={() => invoke('close_window')}
+          onClick={() => { if (isTauri()) invoke('close_window'); }}
           style={{
             marginTop: '25px',
             padding: '8px 20px',
