@@ -13,7 +13,7 @@ A lightweight, always-on-top desktop widget for tracking cryptocurrency prices i
 **Windows 10 & 11 (x64)**  
 The easiest way to use Chibi Sats is to download the latest installer or portable executable from the Releases page:
 
-👉 **[Download Latest Release]([https://github.com](https://github.com/Vasey007/Chibi-sats-tauri/releases/tag/Chibi-Sats))**
+👉 **[Download Latest Release](https://github.com)**
 
 ---
 
