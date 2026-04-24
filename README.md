@@ -42,7 +42,7 @@ A lightweight, always-on-top desktop widget for tracking cryptocurrency prices i
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 18+
+- [Node.js](https://nodejs.org/) LTS
 - [pnpm](https://pnpm.io/)
 - [Rust](https://www.rust-lang.org/tools/install) (for Tauri)
 
