@@ -49,7 +49,7 @@ A lightweight, always-on-top desktop widget for tracking cryptocurrency prices i
 ### Install & run
 
 ```bash
-git clone https://github.com/your-username/chibi-sats.git
+git clone https://github.com/Vasey007/chibi-sats.git
 cd chibi-sats
 
 pnpm install
